@@ -3,16 +3,20 @@ use std::hash::Hash;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use super::command::Command;
+
 type Id = Arc<str>;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, Ord, PartialOrd)]
 pub enum Op {
+    Gather,
     Load,
     Finish,
 }
 
 #[derive(Debug, Clone)]
 pub enum Operation {
+    Gather { cmd: Command, paths: Vec<PathBuf> },
     Load { id: Id, path: PathBuf },
     Finish,
 }
@@ -26,7 +30,8 @@ impl Operation {
 impl Display for Operation {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Operation::Load { id, path } => write!(f, "Load {}", id),
+            Operation::Gather { .. } => write!(f, "Gather"),
+            Operation::Load { id, .. } => write!(f, "Load {}", id),
             Operation::Finish => write!(f, "Finish"),
         }
     }
@@ -36,6 +41,9 @@ impl Display for Operation {
 pub struct OpId(Op, Id);
 
 impl OpId {
+    pub fn gather() -> Self {
+        Self(Op::Gather, Arc::from("Gather"))
+    }
     pub fn load(id: impl Into<Arc<str>>) -> Self {
         Self(Op::Load, id.into())
     }
@@ -46,6 +54,7 @@ impl OpId {
 
     pub fn uri(&self) -> String {
         match self.0 {
+            Op::Gather => unreachable!(),
             Op::Load => format!("load:{}", self.1),
             Op::Finish => unreachable!(),
         }
@@ -62,6 +71,7 @@ impl From<&Operation> for Op {
     fn from(other: &Operation) -> Op {
         use Operation::*;
         match other {
+            Gather { .. } => Op::Gather,
             Load { .. } => Op::Load,
             Finish => Op::Finish,
         }
@@ -72,8 +82,9 @@ impl From<&Operation> for OpId {
     fn from(other: &Operation) -> OpId {
         use Operation::*;
         match other {
+            Gather { .. } => OpId::gather(),
             Load { id, .. } => OpId(other.into(), id.clone()),
-            Finish => OpId::default(),
+            Finish => OpId::finish(),
         }
     }
 }

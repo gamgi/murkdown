@@ -19,12 +19,16 @@ pub fn is_file(entry: &DirEntry) -> bool {
     entry.path().is_file()
 }
 
+pub fn into_uri_path_tuple(entry: DirEntry) -> (String, PathBuf) {
+    let id = entry.path().display().to_string();
+    (id, entry.path().to_path_buf())
+}
+
 pub fn parents<I>(paths: I) -> Result<HashSet<PathBuf>, AppError>
 where
     I: Iterator<Item = PathBuf>,
 {
     paths
-        .map(PathBuf::from)
         .map(|p| match p.parent() {
             Some(parent) if parent == Path::new("") => Ok(p),
             Some(parent) => Ok(parent.to_path_buf()),

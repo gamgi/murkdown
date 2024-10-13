@@ -7,6 +7,7 @@ use tokio::task::yield_now;
 use tokio_stream::StreamExt;
 
 use super::command::Command;
+use super::op::Operation;
 use super::task;
 use super::types::State;
 use super::utils::parents;
@@ -59,14 +60,16 @@ fn process_event(
     state: &State,
 ) -> Result<(), AppError> {
     match event {
-        Event::Command(cmd) => match cmd {
-            Ok(Command::Load { paths }) => {
-                let paths = paths.iter().map(PathBuf::from);
-                let paths_to_index = parents(paths)?.into_iter().collect();
-                tasks.push(task::index(paths_to_index, state.locations.clone()).boxed());
+        Event::Command(Ok(cmd)) => match cmd {
+            Command::Load { ref paths } => {
+                let paths_parents = parents(paths.iter().map(PathBuf::from))?;
+                let paths: Vec<_> = paths_parents.into_iter().collect();
+
+                tasks.push(task::index(paths.clone(), state.locations.clone()).boxed());
+                state.add_op(Operation::Gather { cmd, paths });
             }
-            Err(_) => todo!(),
         },
+        Event::Command(Err(_)) => todo!(),
         Event::CommandOk => todo!(),
         Event::TaskOk => {}
         Event::TaskError(_) => todo!(),
