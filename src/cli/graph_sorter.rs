@@ -67,7 +67,7 @@ where
         for v in current {
             if let Some(edges) = state.edges.get(&v) {
                 for child in edges.iter() {
-                    if let Some(degree) = state.indegree.get_mut(&child) {
+                    if let Some(degree) = state.indegree.get_mut(child) {
                         *degree -= 1;
                         if *degree == 0 {
                             new_zero_indegree.push(child.clone());

@@ -38,11 +38,11 @@ pub async fn index(
 }
 
 /// Gather entry points from provided paths
-pub async fn gather(op: Operation, graph: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
+pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
     let Operation::Gather { cmd, paths } = &op else {
         panic!()
     };
-    let mut graph = graph.lock().expect("poisoned lock");
+    let mut graph = operations.lock().expect("poisoned lock");
     for path in paths {
         let walker = WalkDir::new(path)
             .into_iter()
@@ -57,7 +57,14 @@ pub async fn gather(op: Operation, graph: Arc<Mutex<OpGraph>>) -> Result<bool, A
             graph.add_dependency(OpId::finish(), load);
         }
     }
-    graph.add_node(Operation::Finish);
+
+    Ok(false)
+}
+
+pub async fn load(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
+    let Operation::Load { id, path } = &op else {
+        unreachable!()
+    };
 
     Ok(false)
 }

@@ -7,6 +7,7 @@ use tokio::task::yield_now;
 use tokio_stream::StreamExt;
 
 use super::command::Command;
+use super::graph_sorter::grouped_topological_sort;
 use super::op::Operation;
 use super::task;
 use super::types::State;
@@ -66,7 +67,7 @@ fn process_event(
                 let paths: Vec<_> = paths_parents.into_iter().collect();
 
                 tasks.push(task::index(paths.clone(), state.locations.clone()).boxed());
-                state.add_op(Operation::Gather { cmd, paths });
+                state.add_op_chain([Operation::Gather { cmd, paths }, Operation::Finish]);
             }
         },
         Event::Command(Err(_)) => todo!(),
@@ -102,4 +103,25 @@ fn process_graph(
     tasks: &mut FuturesUnordered<BoxFuture<'static, Result<bool, AppError>>>,
     state: &State,
 ) {
+    let graph = state.operations.lock().expect("poisoned lock");
+    let sorted = grouped_topological_sort(&*graph).unwrap();
+
+    let next_tasks = sorted
+        .into_iter()
+        .find(|group| group.iter().any(|id| !state.is_op_processed(id)))
+        .unwrap_or_default();
+
+    for id in next_tasks {
+        let vertex = graph.get(&id).unwrap();
+        let ops = state.operations.clone();
+        let op = vertex.clone();
+
+        match vertex {
+            Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
+            Operation::Load { .. } => tasks.push(task::load(op, ops).boxed()),
+            Operation::Finish { .. } => {}
+            _ => todo!(),
+        }
+        state.mark_op_processed(id.clone());
+    }
 }

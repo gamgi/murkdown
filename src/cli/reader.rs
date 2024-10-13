@@ -42,7 +42,7 @@ fn stdin_stream() -> Box<dyn Stream<Item = Result<Command, ClapError>> + Unpin +
     let stream = LinesStream::new(BufReader::new(stdin()).lines());
 
     let fix_prefix = |line: String| format!("command {}", line);
-    let fix_shell = |line: String| shlex::split(&line).unwrap_or_else(Vec::new);
+    let fix_shell = |line: String| shlex::split(&line).unwrap_or_default();
     let parse_cmd = |args: IOResult<_>| match args {
         Ok(args) => Command::try_parse_from(args),
         Err(_) => Err(ClapError::new(clap::error::ErrorKind::MissingSubcommand)),

@@ -34,7 +34,7 @@ impl OpGraph {
     }
 
     pub fn add_dependency(&mut self, from: OpId, to: OpId) {
-        let list = self.adjecency.entry(from).or_insert_with(Vec::new);
+        let list = self.adjecency.entry(from).or_default();
         if !list.contains(&to) {
             list.push(to);
         }

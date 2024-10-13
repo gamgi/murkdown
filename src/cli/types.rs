@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -9,7 +9,11 @@ use murkdown::types::LocationMap;
 use thiserror::Error;
 use tokio::sync::mpsc::{self};
 
-use super::{command::Command, graph::OpGraph, op::Operation};
+use super::{
+    command::Command,
+    graph::OpGraph,
+    op::{OpId, Operation},
+};
 
 pub type EventTx = mpsc::UnboundedSender<Event>;
 pub type EventRx = mpsc::UnboundedReceiver<Event>;
@@ -26,6 +30,7 @@ pub enum Event {
 pub struct State {
     pub locations: Arc<Mutex<LocationMap>>,
     pub operations: Arc<Mutex<OpGraph>>,
+    pub operations_processed: Arc<Mutex<HashSet<OpId>>>,
 }
 
 impl State {
@@ -33,12 +38,48 @@ impl State {
         Self {
             locations: Arc::new(Mutex::new(HashMap::new())),
             operations: Arc::new(Mutex::new(OpGraph::new())),
+            operations_processed: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
-    pub fn add_op(&self, op: Operation) {
+    pub fn add_op(&self, op: Operation) -> OpId {
         let mut ops = self.operations.lock().expect("poisoned lock");
-        ops.add_node(op);
+        ops.add_node(op)
+    }
+
+    pub fn add_op_chain<I>(&self, new_ops: I)
+    where
+        I: IntoIterator<Item = Operation>,
+    {
+        let mut iter = new_ops.into_iter();
+
+        if let Some(first) = iter.next() {
+            let mut ops = self.operations.lock().expect("poisoned lock");
+            let mut prev = ops.add_node(first);
+            for op in iter {
+                let next = ops.add_node(op);
+                ops.add_dependency(next.clone(), prev);
+                prev = next;
+            }
+        }
+    }
+
+    pub fn mark_op_processed(&self, id: OpId) {
+        let mut processed = self.operations_processed.lock().expect("poisoned lock");
+        processed.insert(id);
+    }
+
+    pub fn is_op_processed(&self, id: &OpId) -> bool {
+        let processed = self.operations_processed.lock().expect("poisoned lock");
+        processed.contains(id)
+    }
+
+    /// Clear state
+    pub fn clear(&mut self) {
+        let mut ops = self.operations.lock().expect("poisoned lock");
+        ops.clear();
+        let mut processed = self.operations_processed.lock().expect("poisoned lock");
+        processed.clear();
     }
 }
 
