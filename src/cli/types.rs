@@ -32,12 +32,13 @@ impl State {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum AppError {
+#[derive(Error, Debug, thiserror_ext::Box, thiserror_ext::Construct)]
+#[thiserror_ext(newtype(name = AppError))]
+pub enum AppErrorKind {
     #[error("could not parse command")]
     ClapError(#[from] ClapError),
     #[error("internal channel error")]
-    SendError(#[from] SendError<Event>),
+    SendError,
     #[error("invalid path `{0}`")]
     PathError(PathBuf),
 }

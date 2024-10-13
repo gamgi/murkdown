@@ -38,7 +38,9 @@ pub(crate) enum Command {
 pub async fn handle(event_tx: EventTx, config: &Config) -> Result<(), AppError> {
     let mut reader = Reader::from(config);
     while let Some(cmd) = reader.next().await {
-        event_tx.send(Event::Command { cmd })?;
+        event_tx
+            .send(Event::Command(cmd))
+            .map_err(|_| AppError::send_error())?;
     }
     Ok(())
 }
