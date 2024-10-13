@@ -13,6 +13,11 @@ pub(crate) struct Config {
     #[clap(long, global = true)]
     pub interactive: bool,
 
+    /// Progress output format
+    #[clap(long, default_value = "auto", value_parser = parse_progress)]
+    #[clap(global = true)]
+    pub progress: &'static str,
+
     /// Increase level of verbosity
     #[clap(short, action = clap::ArgAction::Count, global = true)]
     pub verbosity: u8,
@@ -36,4 +41,12 @@ pub async fn handle(event_tx: EventTx, config: &Config) -> Result<(), AppError> 
         event_tx.send(Event::Command { cmd })?;
     }
     Ok(())
+}
+
+fn parse_progress(arg: &str) -> Result<&'static str, &'static str> {
+    match arg {
+        "auto" => Ok("auto"),
+        "plain" => Ok("plain"),
+        _ => Err("Unknown progress"),
+    }
 }
