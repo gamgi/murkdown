@@ -15,7 +15,9 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.4.15", features = ["derive"] }
+env_logger = "0.11.3"
 futures = "0.3.30"
+log = { version = "0.4.21", features = ["kv"] }
 shlex = "1.2.0"
 thiserror = "1.0.63"
 tokio-stream = { version = "0.1.14", features = [ "io-util"] }
