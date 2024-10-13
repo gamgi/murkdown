@@ -7,7 +7,7 @@ use std::{
 use clap::error::Error as ClapError;
 use murkdown::types::LocationMap;
 use thiserror::Error;
-use tokio::sync::mpsc::{self, error::SendError};
+use tokio::sync::mpsc::{self};
 
 use super::command::Command;
 
