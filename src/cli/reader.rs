@@ -18,8 +18,8 @@ pub(crate) struct Reader {
 impl From<&Config> for Reader {
     fn from(config: &Config) -> Self {
         let command = match config.command.as_ref() {
-            Some(command) => tokio_stream::once(Ok(command.clone())),
-            None => tokio_stream::once(Ok(Command::Noop)),
+            Some(command) => Either::Left(tokio_stream::once(Ok(command.clone()))),
+            None => Either::Right(tokio_stream::empty()),
         };
         let stream = match config.interactive {
             true => Either::Left(command.chain(stdin_stream())),
