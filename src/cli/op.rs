@@ -11,6 +11,7 @@ type Id = Arc<str>;
 pub enum Op {
     Gather,
     Load,
+    Parse,
     Finish,
 }
 
@@ -18,6 +19,7 @@ pub enum Op {
 pub enum Operation {
     Gather { cmd: Command, paths: Vec<PathBuf> },
     Load { id: Id, path: PathBuf },
+    Parse { id: Id },
     Finish,
 }
 
@@ -32,6 +34,7 @@ impl Display for Operation {
         match self {
             Operation::Gather { .. } => write!(f, "Gather"),
             Operation::Load { id, .. } => write!(f, "Load {}", id),
+            Operation::Parse { id, .. } => write!(f, "Parse {}", id),
             Operation::Finish => write!(f, "Finish"),
         }
     }
@@ -55,7 +58,8 @@ impl OpId {
     pub fn uri(&self) -> String {
         match self.0 {
             Op::Gather => unreachable!(),
-            Op::Load => format!("load:{}", self.1),
+            Op::Load => format!("raw:{}", self.1),
+            Op::Parse => format!("ast:{}", self.1),
             Op::Finish => unreachable!(),
         }
     }
@@ -73,6 +77,7 @@ impl From<&Operation> for Op {
         match other {
             Gather { .. } => Op::Gather,
             Load { .. } => Op::Load,
+            Parse { .. } => Op::Parse,
             Finish => Op::Finish,
         }
     }
@@ -83,7 +88,7 @@ impl From<&Operation> for OpId {
         use Operation::*;
         match other {
             Gather { .. } => OpId::gather(),
-            Load { id, .. } => OpId(other.into(), id.clone()),
+            Load { id, .. } | Parse { id, .. } => OpId(other.into(), id.clone()),
             Finish => OpId::finish(),
         }
     }

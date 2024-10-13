@@ -1,5 +1,6 @@
 pub(crate) mod command;
 mod graph;
+mod graph_sorter;
 pub(crate) mod logger;
 mod op;
 pub(crate) mod reader;
