@@ -1,5 +1,7 @@
 pub(crate) mod command;
+mod graph;
 pub(crate) mod logger;
+mod op;
 pub(crate) mod reader;
 pub(crate) mod state;
 pub(crate) mod task;
