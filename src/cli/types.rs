@@ -16,7 +16,10 @@ pub type EventRx = mpsc::UnboundedReceiver<Event>;
 
 #[derive(Debug)]
 pub enum Event {
-    Command { cmd: Result<Command, ClapError> },
+    Command(Result<Command, ClapError>),
+    CommandOk,
+    TaskOk,
+    TaskError(AppError),
 }
 
 #[derive(Debug, Clone)]

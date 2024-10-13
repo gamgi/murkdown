@@ -19,7 +19,7 @@ pub fn is_file(entry: &DirEntry) -> bool {
     entry.path().is_file()
 }
 
-pub fn parents<'a, I>(paths: I) -> Result<HashSet<PathBuf>, AppError>
+pub fn parents<I>(paths: I) -> Result<HashSet<PathBuf>, AppError>
 where
     I: Iterator<Item = PathBuf>,
 {

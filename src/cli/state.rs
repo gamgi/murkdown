@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use futures::stream::FuturesUnordered;
 use futures::{future::BoxFuture, FutureExt};
+use log::{error, info, warn};
 use tokio::task::yield_now;
+use tokio_stream::StreamExt;
 
 use super::command::Command;
 use super::task;
@@ -26,13 +28,16 @@ pub async fn handle_state(
     state: State,
 ) -> Result<(), AppError> {
     let mut tasks = FuturesUnordered::<BoxFuture<Result<bool, _>>>::new();
+    let handle_error = |e| process_error(e, config);
 
     loop {
         // Allow other tasks to run
         yield_now().await;
 
         if let Ok(e) = event_rx.try_recv() {
-            process_event(e, config, &mut tasks, &state)?;
+            process_event(e, config, &mut tasks, &state).or_else(handle_error)?;
+        } else if let Some(e) = tasks.next().await {
+            process_result(e, &config, &mut tasks, &state).or_else(handle_error)?;
         }
     }
 }
@@ -44,7 +49,7 @@ fn process_event(
     state: &State,
 ) -> Result<(), AppError> {
     match event {
-        Event::Command { cmd } => match cmd {
+        Event::Command(cmd) => match cmd {
             Ok(Command::Load { paths }) => {
                 let paths = paths.iter().map(PathBuf::from);
                 let paths_to_index = parents(paths)?.into_iter().collect();
@@ -52,6 +57,31 @@ fn process_event(
             }
             Err(_) => todo!(),
         },
+        Event::CommandOk => todo!(),
+        Event::TaskOk => {},
+        Event::TaskError(_) => todo!(),
     }
     Ok(())
+}
+
+fn process_result(
+    res: Result<bool, AppError>,
+    config: &Config,
+    tasks: &mut FuturesUnordered<BoxFuture<'static, Result<bool, AppError>>>,
+    state: &State,
+) -> Result<(), AppError> {
+    match res {
+        Ok(true) => process_event(Event::CommandOk, config, tasks, state)?,
+        Ok(false) => process_event(Event::TaskOk, config, tasks, state)?,
+        Err(e) => process_event(Event::TaskError(e), config, tasks, state)?,
+    }
+    Ok(())
+}
+
+fn process_error(error: AppError, config: &Config) -> Result<(), AppError> {
+    error!("{}", error);
+    match config.interactive {
+        true => Ok(()),
+        false => Err(error),
+    }
 }
