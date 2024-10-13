@@ -14,3 +14,5 @@ name = "md"
 path = "src/main.rs"
 
 [dependencies]
+clap = { version = "4.4.15", features = ["derive"] }
+thiserror = "1.0.63"
