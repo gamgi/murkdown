@@ -30,8 +30,8 @@ pub(crate) struct Config {
 pub(crate) enum Command {
     //// Load content into memory
     Load {
-        /// Path pattern or data URL
-        pat: String,
+        /// Input paths
+        paths: Vec<String>,
     },
 }
 

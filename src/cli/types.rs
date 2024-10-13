@@ -1,4 +1,11 @@
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+
 use clap::error::Error as ClapError;
+use murkdown::types::LocationMap;
 use thiserror::Error;
 use tokio::sync::mpsc::{self, error::SendError};
 
@@ -12,10 +19,25 @@ pub enum Event {
     Command { cmd: Result<Command, ClapError> },
 }
 
+#[derive(Debug, Clone)]
+pub struct State {
+    pub locations: Arc<Mutex<LocationMap>>,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self {
+            locations: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error("could not parse command")]
     ClapError(#[from] ClapError),
     #[error("internal channel error")]
     SendError(#[from] SendError<Event>),
+    #[error("invalid path `{0}`")]
+    PathError(PathBuf),
 }
