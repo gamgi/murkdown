@@ -12,7 +12,7 @@ use super::{
     types::AppError,
     utils::{is_file, is_visible},
 };
-use crate::cli::utils::into_uri_path_tuple;
+use crate::cli::{command::Command, utils::into_uri_path_tuple};
 
 /// Index the contents of provided paths
 pub async fn index(
@@ -53,8 +53,20 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
 
         for (id, path) in walker {
             let id: Arc<str> = Arc::from(id.as_ref());
-            let load = graph.add_node(Operation::Load { id, path });
-            graph.add_dependency(OpId::finish(), load);
+            match cmd {
+                Command::Load { .. } => {
+                    if graph.get(&OpId::load(id.clone())).is_none() {
+                        graph.insert_node_chain([Operation::Load { id, path }, Operation::Finish]);
+                    } else {
+                        // reload
+                    }
+                }
+                Command::Build { .. } => graph.insert_node_chain([
+                    Operation::Load { id: id.clone(), path },
+                    Operation::Parse { id: id.clone() },
+                    Operation::Finish,
+                ]),
+            }
         }
     }
 

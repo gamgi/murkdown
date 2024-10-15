@@ -67,6 +67,12 @@ fn process_event(
                 let paths: Vec<_> = paths_parents.into_iter().collect();
 
                 tasks.push(task::index(paths.clone(), state.locations.clone()).boxed());
+            }
+            Command::Build { ref paths, ref splits } => {
+                let paths_parents = parents(paths.iter().map(PathBuf::from))?;
+                let paths: Vec<_> = paths_parents.into_iter().collect();
+
+                tasks.push(task::index(paths.clone(), state.locations.clone()).boxed());
                 state.add_op_chain([Operation::Gather { cmd, paths }, Operation::Finish]);
             }
         },
@@ -106,19 +112,20 @@ fn process_graph(
     let graph = state.operations.lock().expect("poisoned lock");
     let sorted = grouped_topological_sort(&*graph).unwrap();
 
-    let next_tasks = sorted
+    let mut next_tasks = sorted
         .into_iter()
         .find(|group| group.iter().any(|id| !state.is_op_processed(id)))
         .unwrap_or_default();
+    next_tasks.retain(|id| !state.is_op_processed(id));
 
     for id in next_tasks {
         let vertex = graph.get(&id).unwrap();
         let ops = state.operations.clone();
         let op = vertex.clone();
-
         match vertex {
             Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
             Operation::Load { .. } => tasks.push(task::load(op, ops).boxed()),
+            Operation::Parse { .. } => {}
             Operation::Finish { .. } => {}
             _ => todo!(),
         }

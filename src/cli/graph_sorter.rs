@@ -92,11 +92,11 @@ mod tests {
     #[test]
     fn test_topological_sort() {
         let mut graph = OpGraph::new();
-        let load = graph.add_node(Operation::Load {
+        let load = graph.insert_node(Operation::Load {
             id: "file.md".into(),
             path: PathBuf::from("examples/file.md"),
         });
-        let parse = graph.add_node(Operation::Parse { id: "file.md".into() });
+        let parse = graph.insert_node(Operation::Parse { id: "file.md".into() });
         graph.add_dependency(parse.clone(), load.clone());
 
         let result = grouped_topological_sort(&graph).unwrap();
@@ -106,19 +106,19 @@ mod tests {
     #[test]
     fn test_layered_topological_sort() {
         let mut graph = OpGraph::new();
-        let load1 = graph.add_node(Operation::Load {
+        let load1 = graph.insert_node(Operation::Load {
             id: "file1.md".into(),
             path: PathBuf::from("examples/file1.md"),
         });
-        let parse1 = graph.add_node(Operation::Parse { id: "file1.md".into() });
+        let parse1 = graph.insert_node(Operation::Parse { id: "file1.md".into() });
 
-        let load2 = graph.add_node(Operation::Load {
+        let load2 = graph.insert_node(Operation::Load {
             id: "file2.md".into(),
             path: PathBuf::from("examples/file2.md"),
         });
-        let parse2 = graph.add_node(Operation::Parse { id: "file2.md".into() });
+        let parse2 = graph.insert_node(Operation::Parse { id: "file2.md".into() });
 
-        let finish = graph.add_node(Operation::Finish);
+        let finish = graph.insert_node(Operation::Finish);
         graph.add_dependency(parse1.clone(), load1.clone());
         graph.add_dependency(parse2.clone(), load2.clone());
         graph.add_dependency(finish.clone(), parse1.clone());

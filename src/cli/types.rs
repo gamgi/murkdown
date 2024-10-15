@@ -42,26 +42,17 @@ impl State {
         }
     }
 
-    pub fn add_op(&self, op: Operation) -> OpId {
+    pub fn insert_op(&self, op: Operation) -> OpId {
         let mut ops = self.operations.lock().expect("poisoned lock");
-        ops.add_node(op)
+        ops.insert_node(op)
     }
 
-    pub fn add_op_chain<I>(&self, new_ops: I)
+    pub fn insert_op_chain<I>(&self, new_ops: I)
     where
         I: IntoIterator<Item = Operation>,
     {
-        let mut iter = new_ops.into_iter();
-
-        if let Some(first) = iter.next() {
-            let mut ops = self.operations.lock().expect("poisoned lock");
-            let mut prev = ops.add_node(first);
-            for op in iter {
-                let next = ops.add_node(op);
-                ops.add_dependency(next.clone(), prev);
-                prev = next;
-            }
-        }
+        let mut ops = self.operations.lock().expect("poisoned lock");
+        ops.insert_node_chain(new_ops)
     }
 
     pub fn mark_op_processed(&self, id: OpId) {

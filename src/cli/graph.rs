@@ -22,15 +22,26 @@ impl OpGraph {
         self.vertices.get(id)
     }
 
-    pub fn add_node(&mut self, op: Operation) -> OpId {
+    pub fn insert_node(&mut self, op: Operation) -> OpId {
         let id = OpId::from(&op);
-        let previous = self.vertices.insert(id.clone(), op);
-        assert!(previous.is_none());
+        self.vertices.insert(id.clone(), op);
         id
     }
 
-    pub fn push_vertex(&mut self, opid: OpId, op: Operation) {
-        self.vertices.insert(opid, op);
+    pub fn insert_node_chain<I>(&mut self, ops: I)
+    where
+        I: IntoIterator<Item = Operation>,
+    {
+        let mut iter = ops.into_iter();
+
+        if let Some(first) = iter.next() {
+            let mut prev = self.insert_node(first);
+            for op in iter {
+                let next = self.insert_node(op);
+                self.add_dependency(next.clone(), prev);
+                prev = next;
+            }
+        }
     }
 
     pub fn add_dependency(&mut self, from: OpId, to: OpId) {
@@ -57,7 +68,7 @@ impl OpGraph {
         self.adjecency.get(from).map_or(&[], |v| v.as_slice())
     }
 
-    pub fn iter(self: &Self) -> impl Iterator<Item = (&OpId, &Operation, &[OpId])> {
+    pub fn iter(&self) -> impl Iterator<Item = (&OpId, &Operation, &[OpId])> {
         self.vertices
             .iter()
             .map(move |(from, v)| match self.adjecency.get(from) {
@@ -86,11 +97,11 @@ mod tests {
     #[test]
     fn test_graph() {
         let mut graph = OpGraph::new();
-        graph.add_node(Operation::Load {
+        graph.insert_node(Operation::Load {
             id: Arc::from("foo"),
             path: PathBuf::new(),
         });
-        graph.add_node(Operation::Load {
+        graph.insert_node(Operation::Load {
             id: Arc::from("bar"),
             path: PathBuf::new(),
         });
@@ -101,11 +112,11 @@ mod tests {
     #[test]
     fn test_graph_iter() {
         let mut graph = OpGraph::new();
-        graph.add_node(Operation::Load {
+        graph.insert_node(Operation::Load {
             id: Arc::from("foo"),
             path: PathBuf::new(),
         });
-        graph.add_node(Operation::Load {
+        graph.insert_node(Operation::Load {
             id: Arc::from("bar"),
             path: PathBuf::new(),
         });

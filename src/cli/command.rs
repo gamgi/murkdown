@@ -33,6 +33,13 @@ pub(crate) enum Command {
         /// Input paths
         paths: Vec<String>,
     },
+    //// Build sources
+    Build {
+        /// Input paths
+        #[clap(value_name = "PATH")]
+        #[arg(default_values_t = [".".to_string()])]
+        paths: Vec<String>,
+    },
 }
 
 pub async fn handle(event_tx: EventTx, config: &Config) -> Result<(), AppError> {
