@@ -1,0 +1,5 @@
+Root            =  { SOI ~ ( Line ~ NEWLINE )* ~ EOI }
+
+Line            =  { ANY_LETTER* }
+
+ANY_LETTER      = _{ LETTER | NUMBER | MARK | PUNCTUATION | SYMBOL | SEPARATOR }
