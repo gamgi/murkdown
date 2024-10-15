@@ -3,6 +3,8 @@ use std::hash::Hash;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use murkdown::types::URI;
+
 use super::command::Command;
 
 type Id = Arc<str>;
@@ -55,9 +57,9 @@ impl OpId {
         Self(Op::Finish, Arc::from("Finish"))
     }
 
-    pub fn uri(&self) -> String {
+    pub fn uri(&self) -> URI {
         match self.0 {
-            Op::Gather => unreachable!(),
+            Op::Gather => String::from("gather:*"),
             Op::Load => format!("raw:{}", self.1),
             Op::Parse => format!("ast:{}", self.1),
             Op::Finish => unreachable!(),

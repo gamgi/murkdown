@@ -3,16 +3,17 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use murkdown::types::LocationMap;
+use murkdown::types::{LocationMap, URI};
+use log::info;
 use walkdir::WalkDir;
 
 use super::{
     graph::OpGraph,
     op::{OpId, Operation},
-    types::AppError,
+    types::{AppError, ArtifactMap, ErrorPathCtx},
     utils::{is_file, is_visible},
 };
-use crate::cli::{command::Command, utils::into_uri_path_tuple};
+use crate::cli::{artifact::Artifact, command::Command, utils::into_uri_path_tuple};
 
 /// Index the contents of provided paths
 pub async fn index(
@@ -73,10 +74,29 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
     Ok(false)
 }
 
-pub async fn load(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
-    let Operation::Load { id, path } = &op else {
+pub async fn load(op: Operation, artifacts: Arc<Mutex<ArtifactMap>>) -> Result<bool, AppError> {
+    let Operation::Load { path, .. } = &op else {
         unreachable!()
     };
+    let artifact = match tokio::fs::read_to_string(path).await {
+        Ok(contents) => Artifact::String(contents),
+        Err(_) => Artifact::Binary(std::fs::read(path).with_ctx(path)?),
+    };
+    let mut artifacts = artifacts.lock().expect("poisoned lock");
+    artifacts.insert(op.uri(), artifact);
+    Ok(false)
+}
+
+pub async fn parse(
+    op: Operation,
+    dep: URI,
+    artifacts: Arc<Mutex<ArtifactMap>>,
+) -> Result<bool, AppError> {
+    let Operation::Parse { ref id } = &op else {
+        unreachable!()
+    };
+    let artifacts = artifacts.lock().expect("poisoned lock");
+    let content = artifacts.get(&dep).expect("no parse dependency");
 
     Ok(false)
 }

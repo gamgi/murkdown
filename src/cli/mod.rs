@@ -1,3 +1,4 @@
+mod artifact;
 pub(crate) mod command;
 mod graph;
 mod graph_sorter;

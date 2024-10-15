@@ -8,7 +8,7 @@ use tokio_stream::StreamExt;
 
 use super::command::Command;
 use super::graph_sorter::grouped_topological_sort;
-use super::op::Operation;
+use super::op::{OpId, Operation};
 use super::task;
 use super::types::State;
 use super::utils::parents;
@@ -63,23 +63,28 @@ fn process_event(
     match event {
         Event::Command(Ok(cmd)) => match cmd {
             Command::Load { ref paths } => {
-                let paths_parents = parents(paths.iter().map(PathBuf::from))?;
-                let paths: Vec<_> = paths_parents.into_iter().collect();
+                let paths = paths.iter().map(PathBuf::from).collect::<Vec<_>>();
+                let paths_parents = parents(paths.clone().into_iter())?
+                    .into_iter()
+                    .collect::<Vec<_>>();
 
-                tasks.push(task::index(paths.clone(), state.locations.clone()).boxed());
+                tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
+                state.insert_op_chain([Operation::Gather { cmd, paths }, Operation::Finish]);
             }
-            Command::Build { ref paths, ref splits } => {
-                let paths_parents = parents(paths.iter().map(PathBuf::from))?;
-                let paths: Vec<_> = paths_parents.into_iter().collect();
+            Command::Build { ref paths } => {
+                let paths = paths.iter().map(PathBuf::from).collect::<Vec<_>>();
+                let paths_parents = parents(paths.clone().into_iter())?
+                    .into_iter()
+                    .collect::<Vec<_>>();
 
-                tasks.push(task::index(paths.clone(), state.locations.clone()).boxed());
-                state.add_op_chain([Operation::Gather { cmd, paths }, Operation::Finish]);
+                tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
+                state.insert_op_chain([Operation::Gather { cmd, paths }, Operation::Finish]);
             }
         },
         Event::Command(Err(_)) => todo!(),
         Event::CommandOk => todo!(),
         Event::TaskOk => {}
-        Event::TaskError(_) => todo!(),
+        Event::TaskError(e) => return Err(e),
     }
     Ok(())
 }
@@ -109,8 +114,8 @@ fn process_graph(
     tasks: &mut FuturesUnordered<BoxFuture<'static, Result<bool, AppError>>>,
     state: &State,
 ) {
-    let graph = state.operations.lock().expect("poisoned lock");
-    let sorted = grouped_topological_sort(&*graph).unwrap();
+    let operations = state.operations.lock().expect("poisoned lock");
+    let sorted = grouped_topological_sort(&*operations).unwrap();
 
     let mut next_tasks = sorted
         .into_iter()
@@ -119,15 +124,17 @@ fn process_graph(
     next_tasks.retain(|id| !state.is_op_processed(id));
 
     for id in next_tasks {
-        let vertex = graph.get(&id).unwrap();
-        let ops = state.operations.clone();
+        let vertex = operations.get(&id).unwrap();
         let op = vertex.clone();
+        let dep = operations.get_first_node_dependency(&op).map(OpId::uri);
+        let arts = state.artifacts.clone();
+        let ops = state.operations.clone();
+
         match vertex {
             Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
-            Operation::Load { .. } => tasks.push(task::load(op, ops).boxed()),
-            Operation::Parse { .. } => {}
+            Operation::Load { .. } => tasks.push(task::load(op, arts).boxed()),
+            Operation::Parse { .. } => tasks.push(task::parse(op, dep.unwrap(), arts).boxed()),
             Operation::Finish { .. } => {}
-            _ => todo!(),
         }
         state.mark_op_processed(id.clone());
     }

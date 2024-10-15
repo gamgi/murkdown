@@ -59,9 +59,9 @@ impl OpGraph {
     }
 
     /// Get first dependency vertex id
-    pub fn get_first_node_dependency(&self, node: &Operation) -> Option<OpId> {
+    pub fn get_first_node_dependency(&self, node: &Operation) -> Option<&OpId> {
         let from = OpId::from(node);
-        self.get_dependencies(&from).first().cloned()
+        self.get_dependencies(&from).first()
     }
 
     pub fn get_dependencies(&self, from: &OpId) -> &[OpId] {

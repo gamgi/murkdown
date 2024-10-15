@@ -5,11 +5,12 @@ use std::{
 };
 
 use clap::error::Error as ClapError;
-use murkdown::types::LocationMap;
+use murkdown::types::{LocationMap, URI};
 use thiserror::Error;
 use tokio::sync::mpsc::{self};
 
 use super::{
+    artifact::Artifact,
     command::Command,
     graph::OpGraph,
     op::{OpId, Operation},
@@ -26,8 +27,12 @@ pub enum Event {
     TaskError(AppError),
 }
 
+/// Map from URI (eg. load:foo.fd) to artefact
+pub type ArtifactMap = HashMap<URI, Artifact>;
+
 #[derive(Debug, Clone)]
 pub struct State {
+    pub artifacts: Arc<Mutex<ArtifactMap>>,
     pub locations: Arc<Mutex<LocationMap>>,
     pub operations: Arc<Mutex<OpGraph>>,
     pub operations_processed: Arc<Mutex<HashSet<OpId>>>,
@@ -36,6 +41,7 @@ pub struct State {
 impl State {
     pub fn new() -> Self {
         Self {
+            artifacts: Arc::new(Mutex::new(HashMap::new())),
             locations: Arc::new(Mutex::new(HashMap::new())),
             operations: Arc::new(Mutex::new(OpGraph::new())),
             operations_processed: Arc::new(Mutex::new(HashSet::new())),
@@ -82,5 +88,21 @@ pub enum AppErrorKind {
     #[error("internal channel error")]
     SendError,
     #[error("invalid path `{0}`")]
-    PathError(PathBuf),
+    BadPath(PathBuf),
+    #[error("could not read `{path}`")]
+    ReadError {
+        #[backtrace]
+        source: std::io::Error,
+        path: PathBuf,
+    },
+}
+
+pub trait ErrorPathCtx<T> {
+    fn with_ctx<P: Into<PathBuf>>(self, path: P) -> Result<T, AppError>;
+}
+
+impl<T> ErrorPathCtx<T> for Result<T, std::io::Error> {
+    fn with_ctx<P: Into<PathBuf>>(self, path: P) -> Result<T, AppError> {
+        self.map_err(|source| AppError::read_error(source, path))
+    }
 }

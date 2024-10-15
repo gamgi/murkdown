@@ -32,7 +32,7 @@ where
         .map(|p| match p.parent() {
             Some(parent) if parent == Path::new("") => Ok(p),
             Some(parent) => Ok(parent.to_path_buf()),
-            None => Err(AppError::path_error(p)),
+            None => Err(AppError::bad_path(p)),
         })
         .collect()
 }
