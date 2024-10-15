@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use derive_builder::Builder;
+use pest::iterators::Pair;
 
 use crate::parser::Rule;
 pub type Props = HashMap<String, String>;
@@ -17,6 +18,12 @@ pub struct Node {
     pub children: Option<Vec<Node>>,
 }
 
+impl Node {
+    pub fn new(pair: &Pair<Rule>) -> Self {
+        NodeBuilder::from(pair).build().unwrap()
+    }
+}
+
 impl NodeBuilder {
     pub fn new(rule: Rule) -> Self {
         Self::default().rule(rule)
@@ -28,5 +35,16 @@ impl NodeBuilder {
 
     pub fn root() -> Self {
         Self::new(Rule::Root)
+    }
+
+    pub fn add_children(self, children: impl IntoIterator<Item = Node>) -> Self {
+        self.children(children.into_iter().collect())
+    }
+}
+
+impl From<&Pair<'_, Rule>> for NodeBuilder {
+    fn from(pair: &Pair<Rule>) -> Self {
+        let rule = pair.as_rule();
+        NodeBuilder::new(rule)
     }
 }

@@ -5,7 +5,7 @@ use std::{
 };
 
 use clap::error::Error as ClapError;
-use murkdown::types::{LocationMap, URI};
+use murkdown::types::{LocationMap, ParseError, URI};
 use thiserror::Error;
 use tokio::sync::mpsc::{self};
 
@@ -95,6 +95,8 @@ pub enum AppErrorKind {
         source: std::io::Error,
         path: PathBuf,
     },
+    #[error(transparent)]
+    Parse(#[from] Box<ParseError>),
 }
 
 pub trait ErrorPathCtx<T> {

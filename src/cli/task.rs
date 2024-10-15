@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use murkdown::parser;
 use murkdown::types::{LocationMap, URI};
 use log::info;
 use walkdir::WalkDir;
@@ -98,6 +99,13 @@ pub async fn parse(
     };
     let artifacts = artifacts.lock().expect("poisoned lock");
     let content = artifacts.get(&dep).expect("no parse dependency");
+
+    match content {
+        Artifact::String(content) => {
+            let ast = parser::parse(content).map(Artifact::Ast)?;
+        }
+        _ => todo!(),
+    }
 
     Ok(false)
 }
