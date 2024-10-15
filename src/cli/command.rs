@@ -35,6 +35,11 @@ pub(crate) enum Command {
     },
     //// Build sources
     Build {
+        /// At what semantic level(s) should output be split to files
+        #[clap(short, long = "split", value_name = "SPLIT")]
+        #[arg(default_values_t = ["ROOT".to_string(), "DOCUMENT".to_string()])]
+        splits: Vec<String>,
+
         /// Input paths
         #[clap(value_name = "PATH")]
         #[arg(default_values_t = [".".to_string()])]

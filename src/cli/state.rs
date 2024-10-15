@@ -67,18 +67,22 @@ fn process_event(
                 let paths_parents = parents(paths.clone().into_iter())?
                     .into_iter()
                     .collect::<Vec<_>>();
+                let splits = None;
 
                 tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
-                state.insert_op_chain([Operation::Gather { cmd, paths }, Operation::Finish]);
+                state
+                    .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
             }
-            Command::Build { ref paths } => {
+            Command::Build { ref paths, ref splits } => {
                 let paths = paths.iter().map(PathBuf::from).collect::<Vec<_>>();
                 let paths_parents = parents(paths.clone().into_iter())?
                     .into_iter()
                     .collect::<Vec<_>>();
+                let splits = Some(splits.clone());
 
                 tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
-                state.insert_op_chain([Operation::Gather { cmd, paths }, Operation::Finish]);
+                state
+                    .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
             }
         },
         Event::Command(Err(_)) => todo!(),

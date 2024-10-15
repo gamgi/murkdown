@@ -19,9 +19,18 @@ pub enum Op {
 
 #[derive(Debug, Clone)]
 pub enum Operation {
-    Gather { cmd: Command, paths: Vec<PathBuf> },
-    Load { id: Id, path: PathBuf },
-    Parse { id: Id },
+    Gather {
+        cmd: Command,
+        paths: Vec<PathBuf>,
+        splits: Option<Vec<String>>,
+    },
+    Load {
+        id: Id,
+        path: PathBuf,
+    },
+    Parse {
+        id: Id,
+    },
     Finish,
 }
 

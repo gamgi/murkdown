@@ -38,9 +38,10 @@ pub async fn index(
     Ok(false)
 }
 
+// TODO rename schedule or coordintate or something that decidestasks
 /// Gather entry points from provided paths
 pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
-    let Operation::Gather { cmd, paths } = &op else {
+    let Operation::Gather { cmd, paths, splits: _ } = &op else {
         panic!()
     };
     let mut graph = operations.lock().expect("poisoned lock");
