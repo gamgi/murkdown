@@ -22,6 +22,7 @@ pub enum Operation {
     Gather {
         cmd: Command,
         paths: Vec<PathBuf>,
+        #[allow(dead_code)]
         splits: Option<Vec<String>>,
     },
     Load {

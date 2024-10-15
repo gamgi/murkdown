@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use futures::stream::FuturesUnordered;
 use futures::{future::BoxFuture, FutureExt};
-use log::{error, info, warn};
+use log::error;
 use tokio::task::yield_now;
 use tokio_stream::StreamExt;
 

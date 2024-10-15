@@ -10,6 +10,7 @@ use crate::{
 #[grammar = "lib/parser_grammar.pest"]
 struct RawParser;
 
+#[allow(clippy::derivable_impls)]
 impl Default for Rule {
     fn default() -> Self {
         Rule::Root

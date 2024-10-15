@@ -52,6 +52,7 @@ impl OpGraph {
     }
 
     /// Get first dependency vertex
+    #[allow(dead_code)]
     pub fn get_first_dependency(&self, from: &OpId) -> Option<&Operation> {
         self.get_dependencies(from)
             .first()
@@ -77,6 +78,7 @@ impl OpGraph {
             })
     }
 
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.vertices.len()
     }

@@ -5,7 +5,6 @@ use std::{
 
 use murkdown::parser;
 use murkdown::types::{LocationMap, URI};
-use log::info;
 use walkdir::WalkDir;
 
 use super::{
@@ -94,7 +93,7 @@ pub async fn parse(
     dep: URI,
     artifacts: Arc<Mutex<ArtifactMap>>,
 ) -> Result<bool, AppError> {
-    let Operation::Parse { ref id } = &op else {
+    let Operation::Parse { .. } = &op else {
         unreachable!()
     };
     let artifacts = artifacts.lock().expect("poisoned lock");
@@ -102,7 +101,7 @@ pub async fn parse(
 
     match content {
         Artifact::String(content) => {
-            let ast = parser::parse(content).map(Artifact::Ast)?;
+            let _ast = parser::parse(content).map(Artifact::Ast)?;
         }
         _ => todo!(),
     }

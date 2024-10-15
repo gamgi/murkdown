@@ -30,6 +30,7 @@ impl State {
         }
     }
 
+    #[allow(dead_code)]
     pub fn insert_op(&self, op: Operation) -> OpId {
         let mut ops = self.operations.lock().expect("poisoned lock");
         ops.insert_node(op)
@@ -54,6 +55,7 @@ impl State {
     }
 
     /// Clear state
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         let mut ops = self.operations.lock().expect("poisoned lock");
         ops.clear();
