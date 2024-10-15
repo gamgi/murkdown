@@ -1,8 +1,12 @@
 [package]
 name = "murkdown"
-version = "0.1.0"
+categories = ["compilers", "parser-implementations", "command-line-utilities", "web-programming", "text-processing"]
+description = "An experimental semantic markup language and static site generator for composing and decomposing hypertext documents"
 edition = "2021"
+keywords = ["markup", "markdown", "hypertext", "generator", "literate-programming"]
 license = "AGPL-3.0-only"
+repository = "https://github.com/gamgi/murkdown"
+version = "0.1.0"
 
 [lib]
 name = "murkdown"
