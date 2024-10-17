@@ -34,3 +34,10 @@ STOP            = _{ SectHeader }
 
 ANY_LETTER      = _{ LETTER | NUMBER | MARK | PUNCTUATION | SYMBOL | SEPARATOR }
 SPACE           = _{ " " | "\t" }
+
+// Block props
+BlockProps      = _{ Attribute* }
+Attribute       =  { WHITE_SPACE* ~ Key ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ Value_ ~ WHITE_SPACE* }
+Value_          = _{ PUSH("\"") ~ Value ~ POP }
+Key             =  { ("\\="  | !("=" | WHITE_SPACE) ~ ANY_LETTER)* }
+Value           =  { ("\\\"" | !"\"" ~ ANY_LETTER)* }

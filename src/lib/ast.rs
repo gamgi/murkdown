@@ -18,6 +18,8 @@ pub struct Node {
     pub value: Option<String>,
     #[builder(setter(strip_option, each(name = "add_child")))]
     pub children: Option<Vec<Node>>,
+    #[builder(setter(strip_option, each(name = "add_error")))]
+    pub errors: Option<Vec<&'static str>>,
 }
 
 impl Node {
@@ -48,6 +50,13 @@ impl NodeBuilder {
 
     pub fn add_children(self, children: impl IntoIterator<Item = Node>) -> Self {
         self.children(children.into_iter().collect())
+    }
+
+    pub fn try_props<T>(self, props: Result<Option<Props>, T>) -> Self {
+        match props {
+            Ok(props) => self.props(props),
+            Err(_) => self.add_error("invalid props"),
+        }
     }
 }
 
