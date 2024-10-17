@@ -1,3 +1,49 @@
+use std::collections::HashSet;
+
+use crate::ast::Node;
+use crate::parser::Rule;
+use crate::types::{AstMap, LocationMap, URI};
+
+/// Preprocess AST
+pub fn preprocess(
+    node: &mut Node,
+    asts: &mut AstMap,
+    locs: &LocationMap,
+    context: &str,
+    deps: &mut HashSet<URI>,
+) {
+    if let Some(children) = node.children.as_mut() {
+        for child in children.iter_mut() {
+            preprocess(child, asts, locs, context, deps);
+        }
+    }
+    match node.rule {
+        Rule::Root => {
+            preprocess_includes(node, asts, locs, context, deps);
+        }
+        Rule::Block => {
+            preprocess_includes(node, asts, locs, context, deps);
+        }
+        _ => {}
+    }
+}
+
+/// Adds include pointers to nodes and updates deps
+fn preprocess_includes(
+    node: &mut Node,
+    _asts: &mut AstMap,
+    locs: &LocationMap,
+    context: &str,
+    deps: &mut HashSet<URI>,
+) {
+    if let Some(uri_or_path) = node.get_prop("src") {
+        let (schema, path) = uri_or_path.split_once(':').unwrap_or(("ast", uri_or_path));
+        let full_path = resolve_path(path, locs.keys(), context).unwrap_or(path);
+
+        deps.insert(format!("{schema}:{full_path}"));
+    }
+}
+
 /// Resolve path to matching entry from a list
 pub fn resolve_path<'a, I>(path: &str, paths: I, context: &str) -> Option<&'a str>
 where

@@ -13,6 +13,8 @@ pub struct Node {
     #[builder(setter(strip_option))]
     pub rule: Rule,
     #[builder(setter(into))]
+    pub props: Option<Props>,
+    #[builder(setter(into))]
     pub value: Option<String>,
     #[builder(setter(strip_option, each(name = "add_child")))]
     pub children: Option<Vec<Node>>,
@@ -21,6 +23,13 @@ pub struct Node {
 impl Node {
     pub fn new(pair: &Pair<Rule>) -> Self {
         NodeBuilder::from(pair).build().unwrap()
+    }
+
+    pub fn get_prop(&self, key: &str) -> Option<&str> {
+        self.props
+            .as_ref()
+            .and_then(|p| p.get(key))
+            .map(String::as_str)
     }
 }
 
