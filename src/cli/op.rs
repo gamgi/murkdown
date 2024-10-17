@@ -16,6 +16,7 @@ pub enum Op {
     Gather,
     Load,
     Parse,
+    Preprocess,
     Finish,
 }
 
@@ -26,6 +27,7 @@ impl From<&Operation> for Op {
             Gather { .. } => Op::Gather,
             Load { .. } => Op::Load,
             Parse { .. } => Op::Parse,
+            Preprocess { .. } => Op::Preprocess,
             Finish => Op::Finish,
         }
     }
@@ -46,6 +48,9 @@ pub enum Operation {
     Parse {
         id: Id,
     },
+    Preprocess {
+        id: Id,
+    },
     Finish,
 }
 
@@ -61,6 +66,7 @@ impl Display for Operation {
             Operation::Gather { .. } => write!(f, "Gather"),
             Operation::Load { id, .. } => write!(f, "Load {}", id),
             Operation::Parse { id, .. } => write!(f, "Parse {}", id),
+            Operation::Preprocess { id, .. } => write!(f, "Preprocess {}", id),
             Operation::Finish => write!(f, "Finish"),
         }
     }
@@ -85,7 +91,8 @@ impl OpId {
         match self.0 {
             Op::Gather => String::from("gather:*"),
             Op::Load => format!("raw:{}", self.1),
-            Op::Parse => format!("ast:{}", self.1),
+            Op::Parse => format!("raw-ast:{}", self.1),
+            Op::Preprocess => format!("ast:{}", self.1),
             Op::Finish => unreachable!(),
         }
     }
@@ -102,7 +109,9 @@ impl From<&Operation> for OpId {
         use Operation::*;
         match other {
             Gather { .. } => OpId::gather(),
-            Load { id, .. } | Parse { id, .. } => OpId(other.into(), id.clone()),
+            Load { id, .. } | Parse { id, .. } | Preprocess { id } => {
+                OpId(other.into(), id.clone())
+            }
             Finish => OpId::finish(),
         }
     }
@@ -116,6 +125,7 @@ impl FromStr for OpId {
         let op = match schema {
             "raw" => Op::Load,
             "raw-ast" => Op::Parse,
+            "ast" => Op::Preprocess,
             _ => todo!(),
         };
         Ok(Self(op, Arc::from(path)))

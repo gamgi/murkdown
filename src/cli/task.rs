@@ -1,16 +1,18 @@
 use std::{
+    collections::HashSet,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 
 use murkdown::parser;
 use murkdown::types::{LocationMap, URI};
+use murkdown::{preprocessor, types::AstMap};
 use walkdir::WalkDir;
 
 use super::{
     graph::OpGraph,
     op::{OpId, Operation},
-    types::{AppError, ArtifactMap, ErrorPathCtx},
+    types::{AppError, ArtifactMap, ErrorIdCtx, ErrorPathCtx},
     utils::{is_file, is_visible},
 };
 use crate::cli::{artifact::Artifact, command::Command, utils::into_uri_path_tuple};
@@ -38,7 +40,6 @@ pub async fn index(
     Ok(false)
 }
 
-// TODO rename schedule or coordintate or something that decidestasks
 /// Gather entry points from provided paths
 pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
     let Operation::Gather { cmd, paths, splits: _ } = &op else {
@@ -66,6 +67,7 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
                 Command::Build { .. } => graph.insert_node_chain([
                     Operation::Load { id: id.clone(), path },
                     Operation::Parse { id: id.clone() },
+                    Operation::Preprocess { id: id.clone() },
                     Operation::Finish,
                 ]),
             }
@@ -93,17 +95,46 @@ pub async fn parse(
     dep: URI,
     artifacts: Arc<Mutex<ArtifactMap>>,
 ) -> Result<bool, AppError> {
-    let Operation::Parse { .. } = &op else {
+    let Operation::Parse { id } = &op else {
         unreachable!()
     };
-    let artifacts = artifacts.lock().expect("poisoned lock");
+    let mut artifacts = artifacts.lock().expect("poisoned lock");
     let content = artifacts.get(&dep).expect("no parse dependency");
 
     match content {
         Artifact::String(content) => {
-            let _ast = parser::parse(content).map(Artifact::Ast)?;
+            let ast = parser::parse(content).with_path(id)?;
+            artifacts.insert(op.uri(), Artifact::Ast(ast));
         }
         _ => todo!(),
+    }
+
+    Ok(false)
+}
+
+pub async fn preprocess(
+    op: Operation,
+    dep: URI,
+    asts: Arc<Mutex<AstMap>>,
+    _operations: Arc<Mutex<OpGraph>>,
+    artifacts: Arc<Mutex<ArtifactMap>>,
+    locations: Arc<Mutex<LocationMap>>,
+) -> Result<bool, AppError> {
+    let Operation::Preprocess { ref id } = op else {
+        unreachable!()
+    };
+    let mut artifacts = artifacts.lock().expect("poisoned lock");
+    let ast = artifacts.get(&dep).expect("no preprocess dependency");
+    let locs = locations.lock().expect("poisoned lock");
+
+    match ast.clone() {
+        Artifact::Ast(mut node) => {
+            let mut asts = asts.lock().expect("poisoned lock");
+            let mut deps = HashSet::new();
+            preprocessor::preprocess(&mut node, &mut asts, &locs, id, &mut deps);
+            artifacts.insert(op.uri(), Artifact::Ast(node));
+        }
+        _ => panic!("preprocessing unknown artifact"),
     }
 
     Ok(false)

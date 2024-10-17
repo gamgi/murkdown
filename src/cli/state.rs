@@ -131,13 +131,18 @@ fn process_graph(
         let vertex = operations.get(&id).unwrap();
         let op = vertex.clone();
         let dep = operations.get_first_node_dependency(&op).map(OpId::uri);
+        let asts = state.asts.clone();
         let arts = state.artifacts.clone();
         let ops = state.operations.clone();
+        let locs = state.locations.clone();
 
         match vertex {
             Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
             Operation::Load { .. } => tasks.push(task::load(op, arts).boxed()),
             Operation::Parse { .. } => tasks.push(task::parse(op, dep.unwrap(), arts).boxed()),
+            Operation::Preprocess { .. } => {
+                tasks.push(task::preprocess(op, dep.unwrap(), asts, ops, arts, locs).boxed())
+            }
             Operation::Finish { .. } => {}
         }
         state.mark_op_processed(id.clone());

@@ -51,3 +51,13 @@ impl<T> ErrorPathCtx<T> for Result<T, std::io::Error> {
         self.map_err(|source| AppError::read_error(source, path))
     }
 }
+
+pub trait ErrorIdCtx<T> {
+    fn with_path(self, id: &str) -> Result<T, AppError>;
+}
+
+impl<T> ErrorIdCtx<T> for Result<T, Box<ParseError>> {
+    fn with_path(self, id: &str) -> Result<T, AppError> {
+        self.map_err(|e| AppError::from(Box::new(e.with_path(id))))
+    }
+}
