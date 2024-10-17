@@ -1,5 +1,36 @@
-Root            =  { SOI ~ ( Line ~ NEWLINE )* ~ EOI }
+// Blocks
+Root            =  { SOI ~ RootHeader? ~ RootBlock* ~ EOI }
+
+Control         = _{ Block }
+Content         = _{ ("\\" ~ &STOP | !STOP) ~ Line ~ NEWLINE | LineEOI }
+
+
+Block           =  { PUSH(BLOCK_START) ~ !(NEWLINE | EOI) ~ (ShortBlock_ | LongBlocks_) ~ DROP }
+LongBlocks_     = _{ (BlockHeader ~ (NEWLINE | EOI) ~ CONTROL_INDENT?)? ~ LongBlock? ~ (CONTROL_INDENT ~ LongBlock)* }
+ShortBlock_     = _{  BlockHeader                                       ~ ShortBlock }
+
+RootBlock       =  { (        SectHeader | Control |         Content) ~ (CONTROL_INDENT ~ Control | CONTENT_INDENT ~ Content)* }
+LongBlock       =  { (SPACE ~ SectHeader | Control | SPACE ~ Content) ~ (CONTROL_INDENT ~ Control | CONTENT_INDENT ~ Content)* }
+ShortBlock      =  { (                               SPACE ~ Content) }
 
 Line            =  { ANY_LETTER* }
+LineEOI         =  { ANY_LETTER+ ~ &EOI }
+
+BlockHeader     = _{ SPACE ~ BlockHeader_ }
+RootHeader      = _{ BlockHeader_ ~ (NEWLINE | &EOI) }
+SectHeader      = _{ SectHeader_ ~ NEWLINE }
+BlockHeader_    = _{ "[!" ~ BLOCK_HEADER ~ "]" ~ ("("  ~ BLOCK_PROPS ~ ")")? }
+SectHeader_     = _{ "[~" ~ SECT_HEADER  ~ "]" ~ ("("  ~ BLOCK_PROPS ~ ")")? }
+
+BLOCK_START     =  { "|" | ">" | "*" | "+" | "-" | "#" }
+BLOCK_HEADER    =  { (!"]"          ~ ANY_LETTER)* }
+SECT_HEADER     =  { (!"]"          ~ ANY_LETTER)* }
+BLOCK_PROPS     =  { ("\\)"  | !")" ~ ANY_LETTER)* }
+BLOCK_INDENT    = _{ PEEK[..-1] ~ &BLOCK_START ~ PEEK }                      // prefix for block control
+CONTROL_INDENT  = _{ PEEK[..-1] ~ &BLOCK_START ~ PEEK          | NO_INDENT } // prefix for block control or root control
+CONTENT_INDENT  = _{ PEEK[..-1] ~ &BLOCK_START ~ PEEK ~ SPACE? | NO_INDENT } // prefix for block content or root content
+NO_INDENT       = _{ &PEEK_ALL ~ "" }
+STOP            = _{ SectHeader }
 
 ANY_LETTER      = _{ LETTER | NUMBER | MARK | PUNCTUATION | SYMBOL | SEPARATOR }
+SPACE           = _{ " " | "\t" }
