@@ -1,11 +1,13 @@
 use std::fmt::{self, Display, Formatter};
 use std::hash::Hash;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use murkdown::types::URI;
 
 use super::command::Command;
+use super::types::AppError;
 
 type Id = Arc<str>;
 
@@ -15,6 +17,18 @@ pub enum Op {
     Load,
     Parse,
     Finish,
+}
+
+impl From<&Operation> for Op {
+    fn from(other: &Operation) -> Op {
+        use Operation::*;
+        match other {
+            Gather { .. } => Op::Gather,
+            Load { .. } => Op::Load,
+            Parse { .. } => Op::Parse,
+            Finish => Op::Finish,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -83,18 +97,6 @@ impl Default for OpId {
     }
 }
 
-impl From<&Operation> for Op {
-    fn from(other: &Operation) -> Op {
-        use Operation::*;
-        match other {
-            Gather { .. } => Op::Gather,
-            Load { .. } => Op::Load,
-            Parse { .. } => Op::Parse,
-            Finish => Op::Finish,
-        }
-    }
-}
-
 impl From<&Operation> for OpId {
     fn from(other: &Operation) -> OpId {
         use Operation::*;
@@ -103,5 +105,19 @@ impl From<&Operation> for OpId {
             Load { id, .. } | Parse { id, .. } => OpId(other.into(), id.clone()),
             Finish => OpId::finish(),
         }
+    }
+}
+
+impl FromStr for OpId {
+    type Err = crate::cli::types::AppError;
+
+    fn from_str(other: &str) -> Result<Self, Self::Err> {
+        let (schema, path) = other.split_once(':').ok_or(AppError::bad_uri(other))?;
+        let op = match schema {
+            "raw" => Op::Load,
+            "raw-ast" => Op::Parse,
+            _ => todo!(),
+        };
+        Ok(Self(op, Arc::from(path)))
     }
 }

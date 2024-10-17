@@ -30,6 +30,8 @@ pub enum AppErrorKind {
     SendError,
     #[error("invalid path `{0}`")]
     BadPath(PathBuf),
+    #[error("invalid URI: {0}")]
+    BadUri(String),
     #[error("could not read `{path}`")]
     ReadError {
         #[backtrace]
