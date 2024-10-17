@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use murkdown::types::LocationMap;
+use murkdown::types::{AstMap, LocationMap};
 
 use super::{
     graph::OpGraph,
@@ -15,6 +15,7 @@ use super::{
 #[derive(Debug, Clone)]
 pub struct State {
     pub artifacts: Arc<Mutex<ArtifactMap>>,
+    pub asts: Arc<Mutex<AstMap>>,
     pub locations: Arc<Mutex<LocationMap>>,
     pub operations: Arc<Mutex<OpGraph>>,
     pub operations_processed: Arc<Mutex<HashSet<OpId>>>,
@@ -24,6 +25,7 @@ impl State {
     pub fn new() -> Self {
         Self {
             artifacts: Arc::new(Mutex::new(HashMap::new())),
+            asts: Arc::new(Mutex::new(HashMap::new())),
             locations: Arc::new(Mutex::new(HashMap::new())),
             operations: Arc::new(Mutex::new(OpGraph::new())),
             operations_processed: Arc::new(Mutex::new(HashSet::new())),
