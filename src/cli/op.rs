@@ -89,11 +89,11 @@ impl OpId {
 
     pub fn uri(&self) -> URI {
         match self.0 {
-            Op::Gather => String::from("gather:*"),
-            Op::Load => format!("raw:{}", self.1),
-            Op::Parse => format!("raw-ast:{}", self.1),
-            Op::Preprocess => format!("ast:{}", self.1),
-            Op::Finish => unreachable!(),
+            Op::Gather => String::from("gather:"),
+            Op::Load => format!("file:{}", self.1),
+            Op::Parse => format!("ast:{}", self.1),
+            Op::Preprocess => format!("parse:{}", self.1),
+            Op::Finish => String::from("finish:"),
         }
     }
 }
@@ -123,10 +123,10 @@ impl FromStr for OpId {
     fn from_str(other: &str) -> Result<Self, Self::Err> {
         let (schema, path) = other.split_once(':').ok_or(AppError::bad_uri(other))?;
         let op = match schema {
-            "raw" => Op::Load,
-            "raw-ast" => Op::Parse,
-            "ast" => Op::Preprocess,
-            _ => todo!(),
+            "file" => Op::Load,
+            "ast" => Op::Parse,
+            "parse" => Op::Preprocess,
+            _ => return Err(AppError::unknown_schema(schema)),
         };
         Ok(Self(op, Arc::from(path)))
     }

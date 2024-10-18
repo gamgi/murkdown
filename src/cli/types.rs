@@ -32,6 +32,8 @@ pub enum AppErrorKind {
     BadPath(PathBuf),
     #[error("invalid URI: {0}")]
     BadUri(String),
+    #[error("unknown URI schema: {0}")]
+    UnknownSchema(String),
     #[error("could not read `{path}`")]
     ReadError {
         #[backtrace]

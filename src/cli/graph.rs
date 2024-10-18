@@ -22,6 +22,14 @@ impl OpGraph {
         self.vertices.get(id)
     }
 
+    pub fn get_uri(&self, uri: &str) -> Option<&Operation> {
+        if let Ok(opid) = OpId::from_str(uri) {
+            self.get(&opid)
+        } else {
+            None
+        }
+    }
+
     pub fn insert_node(&mut self, op: Operation) -> OpId {
         let id = OpId::from(&op);
         self.vertices.insert(id.clone(), op);

@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -40,12 +39,14 @@ pub async fn index(
     Ok(false)
 }
 
-/// Gather entry points from provided paths
+/// Gather entry points and schedule dependencies
 pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
     let Operation::Gather { cmd, paths, splits: _ } = &op else {
         panic!()
     };
     let mut graph = operations.lock().expect("poisoned lock");
+
+    // schedule dependent tasks
     for path in paths {
         let walker = WalkDir::new(path)
             .into_iter()
@@ -65,6 +66,7 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
                     }
                 }
                 Command::Build { .. } => graph.insert_node_chain([
+                    op.clone(),
                     Operation::Load { id: id.clone(), path },
                     Operation::Parse { id: id.clone() },
                     Operation::Preprocess { id: id.clone() },
@@ -77,6 +79,7 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
     Ok(false)
 }
 
+/// Load files
 pub async fn load(op: Operation, artifacts: Arc<Mutex<ArtifactMap>>) -> Result<bool, AppError> {
     let Operation::Load { path, .. } = &op else {
         unreachable!()
@@ -90,6 +93,7 @@ pub async fn load(op: Operation, artifacts: Arc<Mutex<ArtifactMap>>) -> Result<b
     Ok(false)
 }
 
+/// Parse files to AST
 pub async fn parse(
     op: Operation,
     dep: URI,
@@ -112,11 +116,12 @@ pub async fn parse(
     Ok(false)
 }
 
+/// Preprocess AST and schedule dependencies
 pub async fn preprocess(
     op: Operation,
     dep: URI,
     asts: Arc<Mutex<AstMap>>,
-    _operations: Arc<Mutex<OpGraph>>,
+    operations: Arc<Mutex<OpGraph>>,
     artifacts: Arc<Mutex<ArtifactMap>>,
     locations: Arc<Mutex<LocationMap>>,
 ) -> Result<bool, AppError> {
@@ -125,14 +130,60 @@ pub async fn preprocess(
     };
     let mut artifacts = artifacts.lock().expect("poisoned lock");
     let ast = artifacts.get(&dep).expect("no preprocess dependency");
-    let locs = locations.lock().expect("poisoned lock");
+    let mut graph = operations.lock().expect("poisoned lock");
 
     match ast.clone() {
         Artifact::Ast(mut node) => {
             let mut asts = asts.lock().expect("poisoned lock");
-            let mut deps = HashSet::new();
-            preprocessor::preprocess(&mut node, &mut asts, &locs, id, &mut deps);
+
+            let deps = {
+                let locs = locations.lock().expect("poisoned lock");
+                preprocessor::preprocess(&mut node, &mut asts, &locs, id)
+            };
             artifacts.insert(op.uri(), Artifact::Ast(node));
+
+            // schedule dependent tasks
+            for uri in deps {
+                let (schema, path) = uri.split_once(':').expect("uri to have schema");
+
+                if graph.get_uri(&uri).is_some() {
+                    continue;
+                }
+
+                match schema {
+                    "file" => {
+                        graph.insert_node_chain([
+                            Operation::Load {
+                                id: path.into(),
+                                path: PathBuf::from(path),
+                            },
+                            op.clone(),
+                        ]);
+                    }
+                    "ast" => {
+                        graph.insert_node_chain([
+                            Operation::Load {
+                                id: path.into(),
+                                path: PathBuf::from(path),
+                            },
+                            Operation::Parse { id: path.into() },
+                            op.clone(),
+                        ]);
+                    }
+                    "parse" => {
+                        graph.insert_node_chain([
+                            Operation::Load {
+                                id: path.into(),
+                                path: PathBuf::from(path),
+                            },
+                            Operation::Parse { id: path.into() },
+                            Operation::Preprocess { id: path.into() },
+                            op.clone(),
+                        ]);
+                    }
+                    _ => todo!("unknown schema"),
+                }
+            }
         }
         _ => panic!("preprocessing unknown artifact"),
     }
