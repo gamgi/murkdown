@@ -31,3 +31,6 @@ thiserror-ext = "0.2.0"
 tokio-stream = { version = "0.1.14", features = [ "io-util"] }
 tokio = { version = "1.37.0", features = ["fs", "macros", "io-util", "io-std", "rt-multi-thread", "process"] }
 walkdir = "2.5.0"
+
+[dev-dependencies]
+pretty_assertions = "1.4.0"
