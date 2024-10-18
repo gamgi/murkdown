@@ -18,6 +18,7 @@ name = "md"
 path = "src/main.rs"
 
 [dependencies]
+base64 = "0.22.1"
 clap = { version = "4.4.15", features = ["derive"] }
 derive_builder = "0.20.2"
 env_logger = "0.11.3"
