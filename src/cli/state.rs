@@ -133,30 +133,39 @@ fn process_graph(
     let operations = state.operations.lock().expect("poisoned lock");
     let sorted = grouped_topological_sort(&*operations).unwrap();
 
-    let mut next_tasks = sorted
+    let next_tasks = sorted
         .into_iter()
-        .find(|group| group.iter().any(|id| !state.is_op_processed(id)))
-        .unwrap_or_default();
-    next_tasks.retain(|id| !state.is_op_processed(id));
+        .skip_while(|group| group.iter().all(|id| state.is_op_processed(id)));
 
-    for id in next_tasks {
-        let vertex = operations.get(&id).unwrap();
-        let op = vertex.clone();
-        let dep = operations.get_first_node_dependency(&op).map(OpId::uri);
-        let asts = state.asts.clone();
-        let arts = state.artifacts.clone();
-        let ops = state.operations.clone();
-        let locs = state.locations.clone();
+    for mut batch in next_tasks {
+        batch.retain(|id| !state.is_op_processed(id));
 
-        match vertex {
-            Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
-            Operation::Load { .. } => tasks.push(task::load(op, arts).boxed()),
-            Operation::Parse { .. } => tasks.push(task::parse(op, dep.unwrap(), arts).boxed()),
-            Operation::Preprocess { .. } => {
-                tasks.push(task::preprocess(op, dep.unwrap(), asts, ops, arts, locs).boxed())
+        // schedule tasks
+        for opid in batch {
+            let vertex = operations.get(&opid).unwrap();
+            let op = vertex.clone();
+            let dep = operations.get_first_node_dependency(&op).map(OpId::uri);
+            let asts = state.asts.clone();
+            let arts = state.artifacts.clone();
+            let ops = state.operations.clone();
+            let locs = state.locations.clone();
+
+            match vertex {
+                Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
+                Operation::Load { .. } => tasks.push(task::load(op, arts).boxed()),
+                Operation::Parse { .. } => tasks.push(task::parse(op, dep.unwrap(), arts).boxed()),
+                Operation::Preprocess { .. } => {
+                    tasks.push(task::preprocess(op, dep.unwrap(), asts, ops, arts, locs).boxed())
+                }
+                Operation::Graph { .. } => tasks.push(task::graph(op, ops).boxed()),
+                Operation::Finish => {}
             }
-            Operation::Finish { .. } => {}
+            state.mark_op_processed(opid.clone());
         }
-        state.mark_op_processed(id.clone());
+
+        // keep scheduling if batch yelded no tasks (eg. `Operation::Finish`)
+        if !tasks.is_empty() {
+            break;
+        }
     }
 }
