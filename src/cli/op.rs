@@ -1,12 +1,12 @@
 use std::fmt::{self, Display, Formatter};
-use std::hash::Hash;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
 use murkdown::types::URI;
 
-use super::command::Command;
+use super::command::{Command, GraphType};
 use super::types::AppError;
 
 type Id = Arc<str>;
@@ -17,6 +17,7 @@ pub enum Op {
     Load,
     Parse,
     Preprocess,
+    Graph,
     Finish,
 }
 
@@ -28,6 +29,7 @@ impl From<&Operation> for Op {
             Load { .. } => Op::Load,
             Parse { .. } => Op::Parse,
             Preprocess { .. } => Op::Preprocess,
+            Graph { .. } => Op::Graph,
             Finish => Op::Finish,
         }
     }
@@ -52,6 +54,9 @@ pub enum Operation {
         id: Id,
     },
     Finish,
+    Graph {
+        graph_type: GraphType,
+    },
 }
 
 impl Operation {
@@ -67,6 +72,7 @@ impl Display for Operation {
             Operation::Load { id, .. } => write!(f, "Load {}", id),
             Operation::Parse { id, .. } => write!(f, "Parse {}", id),
             Operation::Preprocess { id, .. } => write!(f, "Preprocess {}", id),
+            Operation::Graph { .. } => write!(f, "Graph"),
             Operation::Finish => write!(f, "Finish"),
         }
     }
@@ -87,14 +93,23 @@ impl OpId {
         Self(Op::Finish, Arc::from("Finish"))
     }
 
+    pub fn graph() -> Self {
+        Self(Op::Graph, Arc::from("Graph"))
+    }
+
     pub fn uri(&self) -> URI {
         match self.0 {
             Op::Gather => String::from("gather:"),
             Op::Load => format!("file:{}", self.1),
             Op::Parse => format!("ast:{}", self.1),
             Op::Preprocess => format!("parse:{}", self.1),
+            Op::Graph => String::from("graph:"),
             Op::Finish => String::from("finish:"),
         }
+    }
+
+    pub fn uid(&self) -> String {
+        STANDARD_NO_PAD.encode(self.uri())
     }
 }
 
@@ -112,6 +127,7 @@ impl From<&Operation> for OpId {
             Load { id, .. } | Parse { id, .. } | Preprocess { id } => {
                 OpId(other.into(), id.clone())
             }
+            Graph { .. } => OpId::graph(),
             Finish => OpId::finish(),
         }
     }

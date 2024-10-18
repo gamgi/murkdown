@@ -60,24 +60,36 @@ fn process_event(
     tasks: &mut FuturesUnordered<BoxFuture<'static, Result<bool, AppError>>>,
     state: &State,
 ) -> Result<(), AppError> {
+    let get_paths = |paths: &[String]| {
+        let paths = paths.iter().map(PathBuf::from).collect::<Vec<_>>();
+        let paths_parents = parents(paths.clone().into_iter())?
+            .into_iter()
+            .collect::<Vec<_>>();
+        Ok::<_, AppError>((paths, paths_parents))
+    };
     match event {
         Event::Command(Ok(cmd)) => match cmd {
-            Command::Load { ref paths } => {
-                let paths = paths.iter().map(PathBuf::from).collect::<Vec<_>>();
-                let paths_parents = parents(paths.clone().into_iter())?
-                    .into_iter()
-                    .collect::<Vec<_>>();
+            Command::Graph { ref paths, graph_type } => {
+                let (paths, paths_parents) = get_paths(paths)?;
+                let splits = None;
+
+                tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
+                state.insert_op_chain([
+                    Operation::Gather { cmd, paths, splits },
+                    Operation::Finish,
+                    Operation::Graph { graph_type },
+                ]);
+            }
+            Command::Load { ref paths, .. } => {
+                let (paths, paths_parents) = get_paths(paths)?;
                 let splits = None;
 
                 tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
                 state
                     .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
             }
-            Command::Build { ref paths, ref splits } => {
-                let paths = paths.iter().map(PathBuf::from).collect::<Vec<_>>();
-                let paths_parents = parents(paths.clone().into_iter())?
-                    .into_iter()
-                    .collect::<Vec<_>>();
+            Command::Build { ref paths, ref splits, .. } => {
+                let (paths, paths_parents) = get_paths(paths)?;
                 let splits = Some(splits.clone());
 
                 tasks.push(task::index(paths_parents, state.locations.clone()).boxed());

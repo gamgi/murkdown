@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use futures::StreamExt;
 
 use super::{
@@ -28,6 +28,17 @@ pub(crate) struct Config {
 
 #[derive(Parser, Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Command {
+    /// Build a graph
+    Graph {
+        /// Graph type
+        #[arg(value_enum, value_name = "TYPE")]
+        graph_type: GraphType,
+
+        /// Input paths
+        #[clap(value_name = "PATH")]
+        #[arg(default_values_t = [".".to_string()])]
+        paths: Vec<String>,
+    },
     //// Load content into memory
     Load {
         /// Input paths
@@ -45,6 +56,12 @@ pub(crate) enum Command {
         #[arg(default_values_t = [".".to_string()])]
         paths: Vec<String>,
     },
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub(crate) enum GraphType {
+    /// Dependency graph
+    Dependencies,
 }
 
 pub async fn handle(event_tx: EventTx, config: &Config) -> Result<(), AppError> {

@@ -1,4 +1,5 @@
 use std::{
+    fmt::Write,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -14,6 +15,7 @@ use super::{
     types::{AppError, ArtifactMap, ErrorIdCtx, ErrorPathCtx},
     utils::{is_file, is_visible},
 };
+use crate::cli::command::GraphType;
 use crate::cli::{artifact::Artifact, command::Command, utils::into_uri_path_tuple};
 
 /// Index the contents of provided paths
@@ -65,7 +67,7 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
                         // reload
                     }
                 }
-                Command::Build { .. } => graph.insert_node_chain([
+                Command::Build { .. } | Command::Graph { .. } => graph.insert_node_chain([
                     op.clone(),
                     Operation::Load { id: id.clone(), path },
                     Operation::Parse { id: id.clone() },
@@ -189,4 +191,39 @@ pub async fn preprocess(
     }
 
     Ok(false)
+}
+
+/// Compile operations graph to PlantUML
+pub async fn graph(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
+    info!("Graph...");
+    let Operation::Graph { graph_type: GraphType::Dependencies } = op else {
+        unreachable!()
+    };
+    let graph = operations.lock().expect("poisoned lock");
+    let mut cards = String::from("@startuml\nskinparam defaultTextAlignment center\n'nodes\n");
+    let mut deps = String::from("'dependencies\n");
+    let nodes = graph
+        .iter()
+        .filter(|(_, op, _)| !matches!(op, Operation::Graph { .. }));
+
+    for (target, _, edges) in nodes {
+        let uri = target.uri();
+        let uid = target.uid();
+        let (schema, path) = uri.split_once(':').expect("uri to have schema");
+
+        cards.push_str("card ");
+        if path.is_empty() {
+            writeln!(&mut cards, "\"({schema})\" as {uid}").expect("write");
+        } else {
+            writeln!(&mut cards, "\"{path}\\n({schema})\" as {uid}").expect("write");
+        }
+
+        for source in edges.iter().filter(|&e| e != &OpId::graph()) {
+            writeln!(&mut deps, "{} --> {}", source.uid(), target.uid()).expect("write");
+        }
+    }
+
+    println!("{}{}@enduml", cards, deps);
+
+    Ok(true)
 }
