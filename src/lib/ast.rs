@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::sync::Arc;
 
 use derive_builder::Builder;
 use pest::iterators::Pair;
 
-use crate::parser::Rule;
-pub type Props = HashMap<String, String>;
+use crate::{parser::Rule, types::Pointer};
+
+pub(crate) type Props = Vec<(Arc<str>, Arc<str>)>;
 
 /// AST Node
 #[derive(Builder, Clone, Debug, Default, PartialEq, Eq)]
@@ -12,10 +13,12 @@ pub type Props = HashMap<String, String>;
 pub struct Node {
     #[builder(setter(strip_option))]
     pub rule: Rule,
-    #[builder(setter(into))]
+    #[builder(setter(strip_option, into, each(name = "add_prop")))]
     pub props: Option<Props>,
     #[builder(setter(into))]
-    pub value: Option<String>,
+    pub value: Option<Arc<str>>,
+    #[builder(setter(strip_option))]
+    pub pointer: Option<Pointer>,
     #[builder(setter(strip_option, each(name = "add_child")))]
     pub children: Option<Vec<Node>>,
     #[builder(setter(strip_option, each(name = "add_error")))]
@@ -25,13 +28,6 @@ pub struct Node {
 impl Node {
     pub fn new(pair: &Pair<Rule>) -> Self {
         NodeBuilder::from(pair).build().unwrap()
-    }
-
-    pub fn get_prop(&self, key: &str) -> Option<&str> {
-        self.props
-            .as_ref()
-            .and_then(|p| p.get(key))
-            .map(String::as_str)
     }
 }
 
@@ -48,13 +44,18 @@ impl NodeBuilder {
         Self::new(Rule::Root)
     }
 
+    pub fn block(_marker: &'static str) -> Self {
+        Self::new(Rule::Block)
+    }
+
     pub fn add_children(self, children: impl IntoIterator<Item = Node>) -> Self {
         self.children(children.into_iter().collect())
     }
 
     pub fn try_props<T>(self, props: Result<Option<Props>, T>) -> Self {
         match props {
-            Ok(props) => self.props(props),
+            Ok(Some(props)) => self.props(props),
+            Ok(None) => self,
             Err(_) => self.add_error("invalid props"),
         }
     }

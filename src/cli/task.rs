@@ -195,7 +195,6 @@ pub async fn preprocess(
 
 /// Compile operations graph to PlantUML
 pub async fn graph(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
-    info!("Graph...");
     let Operation::Graph { graph_type: GraphType::Dependencies } = op else {
         unreachable!()
     };

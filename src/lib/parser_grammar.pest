@@ -41,3 +41,7 @@ Attribute       =  { WHITE_SPACE* ~ Key ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ Va
 Value_          = _{ PUSH("\"") ~ Value ~ POP }
 Key             =  { ("\\="  | !("=" | WHITE_SPACE) ~ ANY_LETTER)* }
 Value           =  { ("\\\"" | !"\"" ~ ANY_LETTER)* }
+
+// Misc
+Pointer         = _{ "dummy" }
+Section         = _{ "dummy" }

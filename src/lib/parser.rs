@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter::Peekable, sync::Arc};
+use std::{iter::Peekable, sync::Arc};
 
 use pest::{
     error::ErrorVariant,
@@ -8,7 +8,7 @@ use pest::{
 use pest_derive::Parser;
 
 use crate::{
-    ast::{Node, NodeBuilder},
+    ast::{Node, NodeBuilder, Props},
     types::ParseError,
 };
 
@@ -84,9 +84,7 @@ fn take_headers(pairs: &mut Peekable<Pairs<'_, Rule>>) -> Option<Vec<Arc<str>>> 
         .map(|p| p.split_ascii_whitespace().map(Arc::from).collect())
 }
 
-fn take_props(
-    pairs: &mut Peekable<Pairs<'_, Rule>>,
-) -> Result<Option<HashMap<String, String>>, ()> {
+fn take_props(pairs: &mut Peekable<Pairs<'_, Rule>>) -> Result<Option<Props>, ()> {
     pairs
         .next_if(|p| matches!(p.as_rule(), Rule::BLOCK_PROPS))
         .map(|p| RawParser::parse(Rule::BlockProps, p.as_str()))
@@ -95,8 +93,8 @@ fn take_props(
                 let props = pairs
                     .map(|pair| {
                         let mut tokens = pair.into_inner();
-                        let key = tokens.next().unwrap().as_str().to_string();
-                        let val = tokens.next().unwrap().as_str().to_string();
+                        let key = Arc::from(tokens.next().unwrap().as_str());
+                        let val = Arc::from(tokens.next().unwrap().as_str());
                         (key, val)
                     })
                     .collect();

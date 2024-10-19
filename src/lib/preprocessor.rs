@@ -1,11 +1,23 @@
 use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
-use crate::ast::Node;
+use crate::ast::{Node, NodeBuilder};
 use crate::parser::Rule;
-use crate::types::{AstMap, LocationMap, URI};
+use crate::types::{AstMap, LocationMap, Pointer, URI};
 
 /// Preprocess AST
 pub fn preprocess(
+    node: &mut Node,
+    asts: &mut AstMap,
+    locs: &LocationMap,
+    context: &str,
+) -> HashSet<String> {
+    let mut deps = HashSet::new();
+    preprocess_recursive(node, asts, locs, context, &mut deps);
+    deps
+}
+
+fn preprocess_recursive(
     node: &mut Node,
     asts: &mut AstMap,
     locs: &LocationMap,
@@ -14,7 +26,7 @@ pub fn preprocess(
 ) {
     if let Some(children) = node.children.as_mut() {
         for child in children.iter_mut() {
-            preprocess(child, asts, locs, context, deps);
+            preprocess_recursive(child, asts, locs, context, deps);
         }
     }
     match node.rule {
@@ -31,16 +43,49 @@ pub fn preprocess(
 /// Adds include pointers to nodes and updates deps
 fn preprocess_includes(
     node: &mut Node,
-    _asts: &mut AstMap,
+    asts: &mut AstMap,
     locs: &LocationMap,
     context: &str,
     deps: &mut HashSet<URI>,
 ) {
-    if let Some(uri_or_path) = node.get_prop("src") {
-        let (schema, path) = uri_or_path.split_once(':').unwrap_or(("ast", uri_or_path));
+    let props = node
+        .props
+        .as_ref()
+        .map_or(&[] as &[_], Vec::as_slice)
+        .iter()
+        .filter(|&(k, _)| &(**k) == "src");
+    for (_, uri_or_path) in props {
+        let (schema, path) = uri_or_path
+            .split_once(':')
+            .unwrap_or(("parse", uri_or_path));
         let full_path = resolve_path(path, locs.keys(), context).unwrap_or(path);
+        let uri = format!("{schema}:{full_path}");
 
-        deps.insert(format!("{schema}:{full_path}"));
+        // add dependency
+        deps.insert(uri.clone());
+
+        // add ast
+        let arc = asts.entry(uri).or_insert_with(|| {
+            let root = NodeBuilder::root()
+                .value(node.value.clone())
+                .build()
+                .unwrap();
+            Arc::new(Mutex::new(root))
+        });
+        let pointer = Pointer(Arc::downgrade(arc));
+        if node.children.is_some() {
+            if node.rule == Rule::Section {
+                todo!();
+            } else {
+                node.pointer = Some(pointer);
+            }
+        } else {
+            let section = NodeBuilder::new(Rule::Section)
+                .pointer(pointer)
+                .build()
+                .unwrap();
+            node.children = Some(vec![section]);
+        }
     }
 }
 
@@ -83,7 +128,51 @@ where
 }
 
 #[cfg(test)]
-mod test_find_key {
+mod tests {
+    use std::path::PathBuf;
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::ast::NodeBuilder;
+
+    #[test]
+    fn test_preprocess_adds_pointer() {
+        let mut asts = AstMap::default();
+        let mut node = NodeBuilder::root()
+            .children(vec![NodeBuilder::block(">")
+                .add_prop(("src".into(), "bar".into()))
+                .done()])
+            .done();
+        let mut locs = LocationMap::default();
+        locs.insert("bar".to_string(), PathBuf::from("something.txt"));
+        preprocess(&mut node, &mut asts, &mut locs, "");
+
+        let section = node.children.as_ref().unwrap().first().unwrap();
+        let block = section.children.as_ref().unwrap().first().unwrap();
+        assert!(block.pointer.is_some());
+    }
+
+    #[test]
+    fn test_preprocess_adds_asts() {
+        let mut asts = AstMap::default();
+        let mut node = NodeBuilder::root()
+            .children(vec![NodeBuilder::block(">")
+                .add_prop(("src".into(), "bar".into()))
+                .done()])
+            .done();
+        let mut locs = LocationMap::default();
+        locs.insert("bar".to_string(), PathBuf::from("something.txt"));
+
+        preprocess(&mut node, &mut asts, &mut locs, "");
+
+        let ast_keys = asts.keys().collect::<Vec<_>>();
+        assert_eq!(ast_keys, vec!["parse:bar"]);
+    }
+}
+
+#[cfg(test)]
+mod tests_resolve_path {
     use std::collections::HashMap;
 
     use super::*;
