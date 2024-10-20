@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
+use thiserror::Error;
 use crate::{ast::Node, parser::Rule};
 
 pub type ParseError = pest::error::Error<Rule>;
@@ -28,3 +29,9 @@ impl PartialEq for Pointer {
 }
 
 impl Eq for Pointer {}
+
+#[derive(Error, Debug)]
+pub enum LibError {
+    #[error(transparent)]
+    ParseError(#[from] Box<pest::error::Error<Rule>>),
+}
