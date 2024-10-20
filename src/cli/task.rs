@@ -5,14 +5,14 @@ use std::{
 };
 
 use murkdown::parser;
-use murkdown::types::{LocationMap, URI};
+use murkdown::types::{LibErrorPathCtx, LocationMap, URI};
 use murkdown::{preprocessor, types::AstMap};
 use walkdir::WalkDir;
 
 use super::{
     graph::OpGraph,
     op::{OpId, Operation},
-    types::{AppError, ArtifactMap, ErrorIdCtx, ErrorPathCtx},
+    types::{AppError, AppErrorPathCtx, ArtifactMap},
     utils::{is_file, is_visible},
 };
 use crate::cli::command::GraphType;

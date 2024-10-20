@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use clap::error::Error as ClapError;
-use murkdown::types::{ParseError, URI};
+use murkdown::types::{LibError, URI};
 use thiserror::Error;
 use tokio::sync::mpsc::{self};
 
@@ -41,25 +41,15 @@ pub enum AppErrorKind {
         path: PathBuf,
     },
     #[error(transparent)]
-    Parse(#[from] Box<ParseError>),
+    Lib(#[from] LibError),
 }
 
-pub trait ErrorPathCtx<T> {
+pub trait AppErrorPathCtx<T> {
     fn with_ctx<P: Into<PathBuf>>(self, path: P) -> Result<T, AppError>;
 }
 
-impl<T> ErrorPathCtx<T> for Result<T, std::io::Error> {
+impl<T> AppErrorPathCtx<T> for Result<T, std::io::Error> {
     fn with_ctx<P: Into<PathBuf>>(self, path: P) -> Result<T, AppError> {
         self.map_err(|source| AppError::read_error(source, path))
-    }
-}
-
-pub trait ErrorIdCtx<T> {
-    fn with_path(self, id: &str) -> Result<T, AppError>;
-}
-
-impl<T> ErrorIdCtx<T> for Result<T, Box<ParseError>> {
-    fn with_path(self, id: &str) -> Result<T, AppError> {
-        self.map_err(|e| AppError::from(Box::new(e.with_path(id))))
     }
 }

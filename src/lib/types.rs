@@ -5,9 +5,8 @@ use std::{
 };
 
 use thiserror::Error;
-use crate::{ast::Node, parser::Rule};
 
-pub type ParseError = pest::error::Error<Rule>;
+use crate::{ast::Node, parser::Rule};
 
 /// Uniform Resource Identifier (eg. load:foo.fd)
 pub type URI = String;
@@ -34,4 +33,17 @@ impl Eq for Pointer {}
 pub enum LibError {
     #[error(transparent)]
     ParseError(#[from] Box<pest::error::Error<Rule>>),
+}
+
+pub trait LibErrorPathCtx<T> {
+    fn with_path(self, id: &str) -> Result<T, LibError>;
+}
+
+impl<T> LibErrorPathCtx<T> for Result<T, LibError> {
+    fn with_path(self, path: &str) -> Result<T, LibError> {
+        self.map_err(|e| match e {
+            LibError::ParseError(error) => LibError::ParseError(Box::new(error.with_path(path))),
+            _ => e,
+        })
+    }
 }

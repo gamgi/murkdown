@@ -1,6 +1,7 @@
 use std::{iter::Peekable, sync::Arc};
 
 use pest::{
+    error::Error as PestError,
     error::ErrorVariant,
     iterators::{Pair, Pairs},
     Parser, Position,
@@ -9,7 +10,7 @@ use pest_derive::Parser;
 
 use crate::{
     ast::{Node, NodeBuilder, Props},
-    types::ParseError,
+    types::LibError,
 };
 
 #[derive(Parser)]
@@ -24,17 +25,19 @@ impl Default for Rule {
 }
 
 /// Parse input to AST
-pub fn parse(input: &str) -> Result<Node, Box<ParseError>> {
+pub fn parse(input: &str) -> Result<Node, LibError> {
     RawParser::parse(Rule::Root, input)
         .and_then(parse_root)
-        .map_err(Box::new)
+        .map_err(|e| LibError::from(Box::new(e)))
 }
 
 #[allow(clippy::result_large_err)]
-fn parse_root<'a>(pairs: impl Iterator<Item = Pair<'a, Rule>> + 'a) -> Result<Node, ParseError> {
-    match parse_pairs(pairs).next() {
+fn parse_root<'a>(
+    pairs: impl Iterator<Item = Pair<'a, Rule>> + 'a,
+) -> Result<Node, PestError<Rule>> {
+    match parse_recursive(pairs).next() {
         Some(r) => Ok(r),
-        None => Err(ParseError::new_from_pos(
+        None => Err(PestError::new_from_pos(
             ErrorVariant::CustomError { message: "no root found".into() },
             Position::from_start(""),
         )),
@@ -42,7 +45,7 @@ fn parse_root<'a>(pairs: impl Iterator<Item = Pair<'a, Rule>> + 'a) -> Result<No
 }
 
 /// Walk pairs and build children
-fn parse_pairs<'a>(
+fn parse_recursive<'a>(
     pairs: impl Iterator<Item = Pair<'a, Rule>> + 'a,
 ) -> impl Iterator<Item = Node> + 'a {
     pairs.filter_map(|pair| match pair.as_rule() {
@@ -53,7 +56,7 @@ fn parse_pairs<'a>(
             let _ = take_marker(&mut pairs);
             let _ = take_headers(&mut pairs);
             let props = take_props(&mut pairs);
-            let sections = parse_pairs(pairs);
+            let sections = parse_recursive(pairs);
             let node = base.add_children(sections).try_props(props);
             Some(node.build().unwrap())
         }
@@ -63,7 +66,7 @@ fn parse_pairs<'a>(
             let _ = take_marker(&mut pairs);
             let _ = take_headers(&mut pairs);
             let props = take_props(&mut pairs);
-            let sections = parse_pairs(pairs);
+            let sections = parse_recursive(pairs);
             let node = base.add_children(sections).try_props(props);
             Some(node.build().unwrap())
         }
