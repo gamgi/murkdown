@@ -1,15 +1,17 @@
 pub(crate) mod lang;
 pub(crate) mod rule;
+pub(crate) mod rule_argument;
 
 use lang::Lang;
 use rule::Context;
+pub(crate) use rule::Rule;
 
 use crate::ast::Node;
 use crate::types::LibError;
 
 /// Compile AST to string
 pub fn compile(node: &mut Node) -> Result<String, LibError> {
-    let lang = Lang::new(include_str!("compiler/markdown.lang"));
+    let lang = Lang::new(include_str!("compiler/markdown.lang"))?;
     compile_recusive(&[node.clone()], &mut Context::default(), &lang, "");
     todo!();
 }

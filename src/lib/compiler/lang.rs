@@ -1,14 +1,16 @@
 use super::rule::{self, LangRule};
+use crate::types::LibError;
 
 pub struct Lang {
-    pub rules: Vec<LangRule>,
+    pub preprocess_rules: Vec<LangRule>,
+    pub compile_rules: Vec<LangRule>,
 }
 
 /// A set of compiler rules
 impl Lang {
-    pub fn new(input: &'static str) -> Lang {
-        let rules = rule::parse(input.to_string());
+    pub fn new(input: &'static str) -> Result<Lang, LibError> {
+        let (preprocess_rules, compile_rules) = rule::parse(input)?;
 
-        Lang { rules }
+        Ok(Lang { preprocess_rules, compile_rules })
     }
 }
