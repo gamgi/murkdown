@@ -1,3 +1,4 @@
+#![feature(hash_raw_entry)]
 pub mod ast;
 pub mod compiler;
 pub mod parser;

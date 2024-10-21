@@ -39,9 +39,11 @@ pub enum LibError {
     BadRuleRegex(#[from] regex::Error),
     #[error("missing root")]
     MissingRoot,
-    #[error("unknown rule section")]
+    #[error("unknown rule section `{0}`")]
     UnknownRuleSection(String),
-    #[error("invalid argument: {0}")]
+    #[error("invalid rule `{0}`")]
+    InvalidRule(String),
+    #[error("invalid argument `{0}`")]
     InvalidRuleArgument(String),
 }
 

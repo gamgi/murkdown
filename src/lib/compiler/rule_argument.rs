@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use pest::iterators::Pair;
 
 use super::Rule;
@@ -9,6 +11,16 @@ pub enum Arg {
     Str(String),
     Int(i64),
     Ref(String),
+}
+
+impl Display for Arg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Arg::Str(v) => write!(f, "\"{}\"", v),
+            Arg::Int(v) => write!(f, "{}", v),
+            Arg::Ref(v) => write!(f, "{}", v),
+        }
+    }
 }
 
 impl TryFrom<Pair<'_, Rule>> for Arg {

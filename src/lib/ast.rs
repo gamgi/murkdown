@@ -29,6 +29,15 @@ impl Node {
     pub fn new(pair: &Pair<Rule>) -> Self {
         NodeBuilder::from(pair).build().unwrap()
     }
+
+    pub fn find_prop(&self, key: &str) -> Option<Arc<str>> {
+        match self.props.as_ref() {
+            Some(props) => props
+                .iter()
+                .find_map(|(k, v)| if &**k == key { Some(v.clone()) } else { None }),
+            None => None,
+        }
+    }
 }
 
 impl NodeBuilder {

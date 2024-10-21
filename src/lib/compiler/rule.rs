@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::{borrow::Cow, sync::Arc};
 
 use pest::iterators::Pair;
@@ -6,7 +7,6 @@ use pest::Parser;
 use pest_derive::Parser;
 use regex::Regex;
 
-use crate::ast::Node;
 use crate::compiler::rule_argument::Arg;
 use crate::types::LibError;
 
@@ -34,6 +34,14 @@ impl LangRule {
 pub(crate) struct LangInstr {
     pub op: String,
     pub args: Vec<Arg>,
+}
+
+impl Display for LangInstr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.op)?;
+        let args = self.args.iter().map(|a| a.to_string()).collect::<Vec<_>>();
+        write!(f, "{}", args.join(" "))
+    }
 }
 
 /// Context for evaluating a rule
