@@ -42,19 +42,103 @@ pub fn parse(input: &str) -> Result<(Vec<LangRule>, Vec<LangRule>), LibError> {
 fn parse_root<'a>(
     mut pairs: impl Iterator<Item = Pair<'a, Rule>> + 'a,
 ) -> Result<(Vec<LangRule>, Vec<LangRule>), LibError> {
-    todo!()
+    let mut compile_rules = Vec::new();
+    let mut preprocess_rules = Vec::new();
+
+    let pairs = pairs.next().unwrap().into_inner();
+    for pair in pairs {
+        if pair.as_rule() == Rule::Section {
+            let mut pairs = pair.into_inner();
+            match pairs.next().unwrap().as_str() {
+                "COMPILE" => compile_rules.extend(parse_recursive(pairs)?),
+                "PREPROCESS" => preprocess_rules.extend(parse_recursive(pairs)?),
+                section => return Err(LibError::unknown_rule_section(section)),
+            }
+        }
+    }
+
+    Ok((preprocess_rules, compile_rules))
+}
+
+/// Walk pairs
+fn parse_recursive<'a>(
+    pairs: impl Iterator<Item = Pair<'a, Rule>>,
+) -> Result<Vec<LangRule>, LibError> {
+    let mut result = Vec::new();
+    for pair in pairs {
+        if pair.as_rule() == Rule::Rule {
+            let mut pairs = pair.into_inner().peekable();
+            let path = pairs.next().unwrap().as_str().to_string();
+            let is_composable = match pairs.peek().unwrap().as_rule() {
+                Rule::Settings => pairs.next().unwrap().as_str().contains("COMPOSABLE"),
+                _ => false,
+            };
+
+            let regex = Regex::new(
+                &path
+                    .replace('[', r"\[")
+                    .replace(']', r"\]")
+                    .replace("...", r"[^]]*"),
+            )?;
+
+            let mut instructions = Vec::new();
+            for mut pairs in pairs.map(Pair::into_inner) {
+                let op = pairs.next().unwrap().as_str().to_string();
+                let args = pairs.map(Arg::try_from).collect::<Result<_, _>>()?;
+                instructions.push(RuleInstruction { op, args });
+            }
+            result.push(LangRule { path, regex, instructions, is_composable });
+        }
+    }
+    Ok(result)
 }
 
 impl LangRule {
-    pub(crate) fn evaluate<'a, 'b, I>(
+    pub(crate) fn evaluate<'a, 'b>(
         &self,
-        rules: &mut I,
+        rules: &mut impl Iterator<Item = &'a RuleInstruction>,
         ctx: &'b mut Context,
         node: &'a Node,
-    ) -> String
-    where
-        I: Iterator<Item = &'a RuleInstruction>,
-    {
+    ) -> String {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use indoc::indoc;
+    use pretty_assertions::assert_eq;
+    use Arg::*;
+
+    use super::*;
+    use crate::compiler::lang::Lang;
+
+    #[test]
+    fn test_parse_rule() {
+        let input = indoc! {
+            r#"
+            [COMPILE]
+            [rule...]
+              IS COMPOSABLE
+              PUSH foo "bar"
+            "#
+        };
+        let lang = Lang::new(input).unwrap();
+
+        assert_eq!(lang.compile_rules.len(), 1);
+        let rule = &lang.compile_rules[0];
+        let expected = LangRule {
+            path: "[rule...]".to_string(),
+            regex: Regex::new(r#"\[rule[^]]*\]"#).unwrap(),
+            instructions: vec![RuleInstruction {
+                op: "PUSH".into(),
+                args: vec![Ref("foo".into()), Str("bar".into())],
+            }],
+            is_composable: true,
+        };
+        assert_eq!(rule.path, expected.path);
+        assert_eq!(rule.instructions, expected.instructions);
+        assert_eq!(rule.regex.as_str(), expected.regex.as_str());
+        assert_eq!(rule.is_composable, expected.is_composable);
     }
 }

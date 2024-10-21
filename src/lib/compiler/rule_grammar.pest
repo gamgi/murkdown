@@ -1,1 +1,33 @@
-Root        = { SOI ~ "asd" ~ EOI }
+Root        = { SOI ~ WHITE_SPACE* ~ Section* ~ WHITE_SPACE* ~ EOI }
+Section     = { Header ~ NEWLINE+ ~ (Rule | NEWLINE+)* }
+Header      =_{ "[" ~ SECTION ~ "]" }
+
+Rule        = { Path ~ NEWLINE ~
+                INDENT ~ (Command | Settings) ~ NEWLINE ~
+                (PEEK_ALL ~ Command ~ NEWLINE )* ~
+                UNINDENT
+              }
+
+Path        = { !(" " | Header) ~ ANY_LETTER+ }
+Command     = { Op ~ (" "+ ~ Args)? }
+Settings    = { "IS " ~ ANY_LETTER+ }
+Op          = { KEYWORD }
+Args        =_{ Arg ~ (" "+ ~ Arg)* }
+Arg         =_{ "\"" ~ Str ~ "\""  | Artifact | Ident | Int | Ref }
+
+Artifact    =_{ "TO " ~ (Memory | "\"" ~ File ~ "\"") }
+Ident       =_{ "AS " ~ "\"" ~ Name ~ "\"" }
+Memory      =@{ "STRING" }
+
+File        =@{ Str }
+Name        =@{ Str }
+Str         = { (!(NEWLINE | "\"") ~ ("\\\"" | ANY_LETTER))+ }
+Int         = { ASCII_DIGIT+ }
+Ref         = { (!(NEWLINE | WHITE_SPACE ) ~ ANY_LETTER )+ }
+
+ANY_LETTER  =_{ LETTER | NUMBER | MARK | PUNCTUATION | SYMBOL | SEPARATOR }
+KEYWORD     =_{ "DEC" | "DRAIN" | "EXEC" | "INC" |  "LOAD" | "NOOP" |  "PUSH" | "POP" | "SET" | "WRITEALL" | "WRITE" | "YIELD" }
+SECTION     = { "PREPROCESS" | "COMPILE" }
+INDENT      =_{ PUSH("  ") }
+UNINDENT    =_{ DROP }
+COMMENT     =_{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }

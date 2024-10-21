@@ -6,7 +6,7 @@ use std::{
 
 use thiserror::Error;
 
-use crate::{ast::Node, parser::Rule};
+use crate::{ast::Node, compiler, parser};
 
 /// Uniform Resource Identifier (eg. load:foo.fd)
 pub type URI = String;
@@ -14,7 +14,7 @@ pub type URI = String;
 /// Map from URI to AST node
 pub type AstMap = HashMap<String, Arc<Mutex<Node>>>;
 
-/// Map from Resource Name (eg. foo.fd) to location on disk
+/// Map from Resource path (eg. foo.fd) to location on disk
 pub type LocationMap = HashMap<String, PathBuf>;
 
 #[derive(Debug, Clone)]
@@ -29,10 +29,20 @@ impl PartialEq for Pointer {
 
 impl Eq for Pointer {}
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, thiserror_ext::Construct)]
 pub enum LibError {
     #[error(transparent)]
-    ParseError(#[from] Box<pest::error::Error<Rule>>),
+    ParseError(#[from] Box<pest::error::Error<parser::Rule>>),
+    #[error(transparent)]
+    ParseRuleError(#[from] Box<pest::error::Error<compiler::Rule>>),
+    #[error(transparent)]
+    BadRuleRegex(#[from] regex::Error),
+    #[error("missing root")]
+    MissingRoot,
+    #[error("unknown rule section")]
+    UnknownRuleSection(String),
+    #[error("invalid argument: {0}")]
+    InvalidRuleArgument(String),
 }
 
 pub trait LibErrorPathCtx<T> {
