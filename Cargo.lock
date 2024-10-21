@@ -435,6 +435,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
+name = "indoc"
+version = "2.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -488,10 +494,12 @@ dependencies = [
  "derive_builder",
  "env_logger",
  "futures",
+ "indoc",
  "log",
  "pest",
  "pest_derive",
  "pretty_assertions",
+ "regex",
  "shlex",
  "thiserror",
  "thiserror-ext",
