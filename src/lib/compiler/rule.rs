@@ -14,16 +14,26 @@ use crate::types::LibError;
 #[grammar = "lib/compiler/rule_grammar.pest"]
 struct RawRuleParser;
 
-/// A compiler rule
+/// Compiler rule
 #[derive(Debug)]
 pub(crate) struct LangRule {
-    instructions: Vec<RuleInstruction>,
+    pub path: String,
+    regex: Regex,
+    pub instructions: Vec<LangInstr>,
+    is_composable: bool,
 }
 
+impl LangRule {
+    pub fn matches(&self, path: &str) -> bool {
+        self.regex.is_match(path)
+    }
+}
+
+/// Compiler instruction
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub(crate) struct RuleInstruction {
-    op: String,
-    args: Vec<Arg>,
+pub(crate) struct LangInstr {
+    pub op: String,
+    pub args: Vec<Arg>,
 }
 
 /// Context for evaluating a rule
@@ -85,23 +95,12 @@ fn parse_recursive<'a>(
             for mut pairs in pairs.map(Pair::into_inner) {
                 let op = pairs.next().unwrap().as_str().to_string();
                 let args = pairs.map(Arg::try_from).collect::<Result<_, _>>()?;
-                instructions.push(RuleInstruction { op, args });
+                instructions.push(LangInstr { op, args });
             }
             result.push(LangRule { path, regex, instructions, is_composable });
         }
     }
     Ok(result)
-}
-
-impl LangRule {
-    pub(crate) fn evaluate<'a, 'b>(
-        &self,
-        rules: &mut impl Iterator<Item = &'a RuleInstruction>,
-        ctx: &'b mut Context,
-        node: &'a Node,
-    ) -> String {
-        todo!()
-    }
 }
 
 #[cfg(test)]
@@ -130,7 +129,7 @@ mod tests {
         let expected = LangRule {
             path: "[rule...]".to_string(),
             regex: Regex::new(r#"\[rule[^]]*\]"#).unwrap(),
-            instructions: vec![RuleInstruction {
+            instructions: vec![LangInstr {
                 op: "PUSH".into(),
                 args: vec![Ref("foo".into()), Str("bar".into())],
             }],
