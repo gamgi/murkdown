@@ -39,6 +39,9 @@ pub(crate) struct LangInstr {
 impl Display for LangInstr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.op)?;
+        if !self.args.is_empty() {
+            write!(f, " ")?;
+        }
         let args = self.args.iter().map(|a| a.to_string()).collect::<Vec<_>>();
         write!(f, "{}", args.join(" "))
     }
@@ -139,7 +142,7 @@ mod tests {
             regex: Regex::new(r#"\[rule[^]]*\]"#).unwrap(),
             instructions: vec![LangInstr {
                 op: "PUSH".into(),
-                args: vec![Ref("foo".into()), Str("bar".into())],
+                args: vec![StackRef("foo".into()), Str("bar".into())],
             }],
             is_composable: true,
         };

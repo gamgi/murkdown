@@ -13,17 +13,19 @@ Command     = { Op ~ (" "+ ~ Args)? }
 Settings    = { "IS " ~ ANY_LETTER+ }
 Op          = { KEYWORD }
 Args        =_{ Arg ~ (" "+ ~ Arg)* }
-Arg         =_{ "\"" ~ Str ~ "\""  | Artifact | Ident | Int | Ref }
+Arg         =_{ "\"" ~ Str ~ "\""  | Artifact | Ident | Prop | Int | StackRef }
 
 Artifact    =_{ "TO " ~ (Memory | "\"" ~ File ~ "\"") }
 Ident       =_{ "AS " ~ "\"" ~ Name ~ "\"" }
-Memory      =@{ "STRING" }
+Prop        =_{ "PROP " ~ PropRef }
 
+Memory      =@{ "STRING" }
 File        =@{ Str }
 Name        =@{ Str }
+PropRef     =@{ StackRef }
 Str         = { (!(NEWLINE | "\"") ~ ("\\\"" | ANY_LETTER))+ }
 Int         = { ASCII_DIGIT+ }
-Ref         = { (!(NEWLINE | WHITE_SPACE ) ~ ANY_LETTER )+ }
+StackRef    = { (!(NEWLINE | WHITE_SPACE ) ~ ANY_LETTER )+ }
 
 ANY_LETTER  =_{ LETTER | NUMBER | MARK | PUNCTUATION | SYMBOL | SEPARATOR }
 KEYWORD     =_{ "DEC" | "DRAIN" | "EXEC" | "INC" |  "LOAD" | "NOOP" |  "PUSH" | "POP" | "SET" | "WRITEALL" | "WRITE" | "YIELD" }

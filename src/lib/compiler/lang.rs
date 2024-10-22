@@ -31,34 +31,53 @@ impl Lang {
         &self,
         rules: &'b mut impl Iterator<Item = &'a LangInstr>,
         ctx: &'b mut Context<'a>,
-        node: &'a Node,
+        node: &'a mut Node,
     ) -> Result<String, LibError> {
         let mut out = String::new();
         for inst in rules {
             use Arg::*;
             match (inst.op.as_str(), inst.args.as_slice()) {
-                ("PUSH", [Ref(target), Str(value)]) => {
-                    let value = replace(value, ctx, node);
+                ("POP", [StackRef(stack)]) => {
+                    if let Some(stack) = ctx.stacks.get_mut(stack.as_str()) {
+                        stack.pop();
+                    }
+                }
+                ("POP", [PropRef(prop)]) => {
+                    if let Some(props) = node.props.as_mut() {
+                        if let Some(idx) = props.iter().position(|(k, _)| **k == *prop) {
+                            props.remove(idx);
+                        }
+                    }
+                }
+                ("PUSH", [StackRef(target), Str(value)]) => {
+                    let value = replace(value, ctx, &*node);
                     ctx.stacks
                         .entry(Arc::from(target.as_str()))
                         .or_default()
                         .push(value);
                 }
-                ("PUSH", [Ref(target), Ref(prop)]) => {
-                    let new_value = match node.find_prop(prop) {
-                        Some(value) => Some(value.to_string().into()),
-                        None => ctx
-                            .stacks
-                            .get(prop.as_str())
-                            .and_then(|v| v.last().cloned()),
-                    };
-                    if let Some(value) = new_value {
+                ("PUSH", [StackRef(target), StackRef(source)]) => {
+                    let value = ctx
+                        .stacks
+                        .get(source.as_str())
+                        .and_then(|v| v.last().cloned());
+                    if let Some(value) = value {
                         ctx.stacks
                             .raw_entry_mut()
                             .from_key(target.as_str())
                             .or_insert(Arc::from(target.as_str()), vec![])
                             .1
                             .push(value);
+                    }
+                }
+                ("PUSH", [StackRef(target), PropRef(prop)]) => {
+                    if let Some(value) = node.find_prop(prop) {
+                        ctx.stacks
+                            .raw_entry_mut()
+                            .from_key(target.as_str())
+                            .or_insert(Arc::from(target.as_str()), vec![])
+                            .1
+                            .push(value.to_string().into());
                     }
                 }
                 ("WRITE", [Str(value)]) => out.push_str(&replace(value, ctx, node)),
@@ -69,14 +88,25 @@ impl Lang {
     }
 }
 
-fn replace<'a>(template: &'a str, ctx: &Context, node: &'a Node) -> Cow<'a, str> {
+fn replace<'a>(template: &'a str, ctx: &Context, node: &Node) -> Cow<'a, str> {
     if !template.contains("\\") && !template.contains("$") {
         return Cow::Borrowed(template);
     }
-    let result = template
+    let mut result = template
         .replace(r#"\v"#, node.value.as_deref().unwrap_or_default())
         .replace(r#"\n"#, "\n");
-
+    if template.contains("$") {
+        for (key, value) in node.props.iter().flatten() {
+            result = result.replace(&format!("${}", key), value);
+        }
+    }
+    if result.contains("$") {
+        for (key, stack) in ctx.stacks.iter() {
+            if let Some(last) = stack.last() {
+                result = result.replace(&format!("${}", key), last);
+            }
+        }
+    }
     Cow::Owned(result)
 }
 
@@ -85,6 +115,7 @@ mod tests {
     use indoc::indoc;
 
     use super::*;
+    use crate::ast::NodeBuilder;
 
     #[test]
     fn test_evaluate() {
@@ -99,13 +130,41 @@ mod tests {
             "#
         };
         let lang = Lang::new(input).unwrap();
-        let node = Node::default();
+        let mut node = Node::default();
 
         let mut instructions = lang.get_instructions("[rule]");
         let mut ctx = Context::default();
 
-        let value = lang.evaluate(&mut instructions, &mut ctx, &node).unwrap();
+        let value = lang
+            .evaluate(&mut instructions, &mut ctx, &mut node)
+            .unwrap();
         assert_eq!(ctx.stacks.get("indent").unwrap(), &["hello", "world"]);
-        assert_eq!(&value, &"ok");
+        assert_eq!(value, "ok");
+    }
+
+    #[test]
+    fn test_evaluate_props() {
+        let input = indoc! {
+            r#"
+            [COMPILE]
+            [rule]
+              WRITE "$word "
+              POP PROP word
+              WRITE "$word"
+            "#
+        };
+        let lang = Lang::new(input).unwrap();
+        let mut node = NodeBuilder::root()
+            .add_prop(("word".into(), "hello".into()))
+            .add_prop(("word".into(), "world".into()))
+            .done();
+
+        let mut instructions = lang.get_instructions("[rule]");
+        let mut ctx = Context::default();
+
+        let value = lang
+            .evaluate(&mut instructions, &mut ctx, &mut node)
+            .unwrap();
+        assert_eq!(value, "hello world");
     }
 }

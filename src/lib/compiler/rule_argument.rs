@@ -10,7 +10,8 @@ use crate::types::LibError;
 pub enum Arg {
     Str(String),
     Int(i64),
-    Ref(String),
+    StackRef(String),
+    PropRef(String),
 }
 
 impl Display for Arg {
@@ -18,7 +19,8 @@ impl Display for Arg {
         match self {
             Arg::Str(v) => write!(f, "\"{}\"", v),
             Arg::Int(v) => write!(f, "{}", v),
-            Arg::Ref(v) => write!(f, "{}", v),
+            Arg::StackRef(v) => write!(f, "{}", v),
+            Arg::PropRef(v) => write!(f, "PROP {}", v),
         }
     }
 }
@@ -34,7 +36,8 @@ impl TryFrom<Pair<'_, Rule>> for Arg {
                     LibError::invalid_rule_argument(pair.as_str())
                 })?))
             }
-            Rule::Ref => Ok(Arg::Ref(pair.as_str().to_string())),
+            Rule::StackRef => Ok(Arg::StackRef(pair.as_str().to_string())),
+            Rule::PropRef => Ok(Arg::PropRef(pair.as_str().to_string())),
             _ => return Err(LibError::invalid_rule_argument(pair.as_str())),
         }
     }
@@ -43,9 +46,8 @@ impl TryFrom<Pair<'_, Rule>> for Arg {
 impl PartialEq<&str> for Arg {
     fn eq(&self, other: &&str) -> bool {
         match self {
-            Arg::Str(s) => s == *other,
+            Arg::Str(s) | Arg::StackRef(s) | Arg::PropRef(s) => s == *other,
             Arg::Int(s) => s.to_string() == *other,
-            Arg::Ref(s) => s == *other,
         }
     }
 }
