@@ -1,6 +1,6 @@
 Root        = { SOI ~ WHITE_SPACE* ~ Section* ~ WHITE_SPACE* ~ EOI }
 Section     = { Header ~ NEWLINE+ ~ (Rule | NEWLINE+)* }
-Header      =_{ "[" ~ SECTION ~ "]" }
+Header      =_{ SECTION ~ " RULES:" }
 
 Rule        = { Path ~ NEWLINE ~
                 INDENT ~ (Command | Settings) ~ NEWLINE ~
@@ -32,4 +32,4 @@ KEYWORD     =_{ "DEC" | "DRAIN" | "EXEC" | "INC" |  "LOAD" | "NOOP" |  "PUSH" | 
 SECTION     = { "PREPROCESS" | "COMPILE" }
 INDENT      =_{ PUSH("  ") }
 UNINDENT    =_{ DROP }
-COMMENT     =_{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+COMMENT     =_{ WHITE_SPACE* ~ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }

@@ -1,0 +1,14 @@
+COMPILE RULES:
+^[...]$
+  PUSH join "\n"
+  NOOP
+
+[...]$
+  PUSH prefix ">"
+  YIELD
+  POP prefix
+
+LINE$
+  WRITEALL prefix
+  WRITE " \v"
+

@@ -27,14 +27,14 @@ impl Lang {
         }
     }
 
-    pub(crate) fn evaluate<'a, 'b>(
+    pub(crate) fn evaluate<'a, 'b, 'c>(
         &self,
-        rules: &'b mut impl Iterator<Item = &'a LangInstr>,
+        instructions: &'b mut impl Iterator<Item = &'a LangInstr>,
         ctx: &'b mut Context<'a>,
-        node: &'a mut Node,
+        node: &'c mut Node,
     ) -> Result<String, LibError> {
         let mut out = String::new();
-        for inst in rules {
+        for inst in instructions {
             use Arg::*;
             match (inst.op.as_str(), inst.args.as_slice()) {
                 ("POP", [StackRef(stack)]) => {
@@ -81,6 +81,16 @@ impl Lang {
                     }
                 }
                 ("WRITE", [Str(value)]) => out.push_str(&replace(value, ctx, node)),
+                ("WRITEALL", [StackRef(stack)]) => {
+                    let stack = ctx.stacks.get(stack.as_str());
+                    if let Some(stack) = stack {
+                        stack.iter().for_each(|v| out.push_str(v));
+                    }
+                }
+                ("YIELD", _) => {
+                    break;
+                }
+                ("NOOP", _) => {}
                 _ => return Err(LibError::invalid_rule(inst.to_string())),
             }
         }
@@ -95,15 +105,19 @@ fn replace<'a>(template: &'a str, ctx: &Context, node: &Node) -> Cow<'a, str> {
     let mut result = template
         .replace(r#"\v"#, node.value.as_deref().unwrap_or_default())
         .replace(r#"\n"#, "\n");
+
+    // variables from props
     if template.contains("$") {
         for (key, value) in node.props.iter().flatten() {
-            result = result.replace(&format!("${}", key), value);
+            result = result.replace(&["$", key].concat(), value);
         }
     }
+
+    // variables from stacks
     if result.contains("$") {
         for (key, stack) in ctx.stacks.iter() {
             if let Some(last) = stack.last() {
-                result = result.replace(&format!("${}", key), last);
+                result = result.replace(&["$", key].concat(), last);
             }
         }
     }
@@ -121,7 +135,7 @@ mod tests {
     fn test_evaluate() {
         let input = indoc! {
             r#"
-            [COMPILE]
+            COMPILE RULES:
             [rule]
               PUSH foo "hello"
               PUSH indent foo
@@ -146,7 +160,7 @@ mod tests {
     fn test_evaluate_props() {
         let input = indoc! {
             r#"
-            [COMPILE]
+            COMPILE RULES:
             [rule]
               WRITE "$word "
               POP PROP word

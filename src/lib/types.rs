@@ -45,6 +45,8 @@ pub enum LibError {
     InvalidRule(String),
     #[error("invalid argument `{0}`")]
     InvalidRuleArgument(String),
+    #[error("invalid argument type `{0}` expected `{1}`")]
+    InvalidRuleArgumentType(String, &'static str),
 }
 
 pub trait LibErrorPathCtx<T> {

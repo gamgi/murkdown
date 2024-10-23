@@ -127,7 +127,7 @@ mod tests {
     fn test_parse_rule() {
         let input = indoc! {
             r#"
-            [COMPILE]
+            COMPILE RULES:
             [rule...]
               IS COMPOSABLE
               PUSH foo "bar"
