@@ -98,8 +98,15 @@ impl NodeBuilder {
 
 impl From<&Pair<'_, Rule>> for NodeBuilder {
     fn from(pair: &Pair<Rule>) -> Self {
-        let rule = pair.as_rule();
-        NodeBuilder::new(rule)
+        let rule = match pair.as_rule() {
+            Rule::LineEOI => Rule::Line,
+            r => r,
+        };
+        let is_line = matches!(rule, Rule::Line);
+        match pair.as_span().as_str() {
+            "" if !is_line => NodeBuilder::new(rule),
+            value => NodeBuilder::new(rule).value(Arc::from(value)),
+        }
     }
 }
 

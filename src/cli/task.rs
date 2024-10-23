@@ -4,8 +4,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use murkdown::parser;
 use murkdown::types::{LibErrorPathCtx, LocationMap, URI};
+use murkdown::{compiler, parser};
 use murkdown::{preprocessor, types::AstMap};
 use walkdir::WalkDir;
 
@@ -72,6 +72,7 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
                     Operation::Load { id: id.clone(), path },
                     Operation::Parse { id: id.clone() },
                     Operation::Preprocess { id: id.clone() },
+                    Operation::Compile { id: id.clone() },
                     Operation::Finish,
                 ]),
             }
@@ -188,6 +189,29 @@ pub async fn preprocess(
             }
         }
         _ => panic!("preprocessing unknown artifact"),
+    }
+
+    Ok(false)
+}
+
+/// Compile AST to string
+pub async fn compile(
+    op: Operation,
+    dep: URI,
+    artifacts: Arc<Mutex<ArtifactMap>>,
+) -> Result<bool, AppError> {
+    let Operation::Compile { .. } = op else {
+        unreachable!()
+    };
+    let mut artifacts = artifacts.lock().expect("poisoned lock");
+    let ast = artifacts.get(&dep).expect("no compile dependency");
+
+    match ast.clone() {
+        Artifact::Ast(mut node) => {
+            let result = compiler::compile(&mut node).unwrap();
+            artifacts.insert(op.uri(), Artifact::String(result));
+        }
+        _ => panic!("compiling unknown artifact"),
     }
 
     Ok(false)

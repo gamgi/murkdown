@@ -27,6 +27,7 @@ impl Lang {
         }
     }
 
+    /// Evaluate instructions to apply mutations and produce output
     pub(crate) fn evaluate<'a, 'b, 'c>(
         &self,
         instructions: &'b mut impl Iterator<Item = &'a LangInstr>,

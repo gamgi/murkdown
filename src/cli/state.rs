@@ -157,6 +157,9 @@ fn process_graph(
                 Operation::Preprocess { .. } => {
                     tasks.push(task::preprocess(op, dep.unwrap(), asts, ops, arts, locs).boxed())
                 }
+                Operation::Compile { .. } => {
+                    tasks.push(task::compile(op, dep.unwrap(), arts).boxed())
+                }
                 Operation::Graph { .. } => tasks.push(task::graph(op, ops).boxed()),
                 Operation::Finish => {}
             }

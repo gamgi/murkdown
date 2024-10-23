@@ -17,9 +17,11 @@ struct RawRuleParser;
 /// Compiler rule
 #[derive(Debug)]
 pub(crate) struct LangRule {
-    pub path: String,
+    #[allow(unused)]
+    path: String,
     regex: Regex,
     pub instructions: Vec<LangInstr>,
+    #[allow(unused)]
     is_composable: bool,
 }
 
