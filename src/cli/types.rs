@@ -21,6 +21,14 @@ pub enum Event {
 /// Map from URI (eg. load:foo.fd) to artefact
 pub type ArtifactMap = HashMap<URI, Artifact>;
 
+/// Output target
+#[derive(Debug, Default, Clone)]
+pub enum Output {
+    #[default]
+    Stdout,
+    Path(PathBuf),
+}
+
 #[derive(Error, Debug, thiserror_ext::Box, thiserror_ext::Construct)]
 #[thiserror_ext(newtype(name = AppError))]
 pub enum AppErrorKind {
@@ -34,8 +42,14 @@ pub enum AppErrorKind {
     BadUri(String),
     #[error("unknown URI schema: {0}")]
     UnknownSchema(String),
-    #[error("could not read `{path}`")]
+    #[error("could not read `{path}`: {source}")]
     ReadError {
+        #[backtrace]
+        source: std::io::Error,
+        path: PathBuf,
+    },
+    #[error("could not write `{path}`: {source}")]
+    WriteError {
         #[backtrace]
         source: std::io::Error,
         path: PathBuf,

@@ -7,12 +7,13 @@ use std::{
 use murkdown::types::{LibErrorPathCtx, LocationMap, URI};
 use murkdown::{compiler, parser};
 use murkdown::{preprocessor, types::AstMap};
+use tokio::fs;
 use walkdir::WalkDir;
 
 use super::{
     graph::OpGraph,
     op::{OpId, Operation},
-    types::{AppError, AppErrorPathCtx, ArtifactMap},
+    types::{AppError, AppErrorPathCtx, ArtifactMap, Output},
     utils::{is_file, is_visible},
 };
 use crate::cli::command::GraphType;
@@ -73,6 +74,7 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
                     Operation::Parse { id: id.clone() },
                     Operation::Preprocess { id: id.clone() },
                     Operation::Compile { id: id.clone() },
+                    Operation::Write { id: id.clone() },
                     Operation::Finish,
                 ]),
             }
@@ -212,6 +214,40 @@ pub async fn compile(
             artifacts.insert(op.uri(), Artifact::String(result));
         }
         _ => panic!("compiling unknown artifact"),
+    }
+
+    Ok(false)
+}
+
+/// Write artifact to target
+pub async fn write(
+    op: Operation,
+    dep: URI,
+    artifacts: Arc<Mutex<ArtifactMap>>,
+    output: Output,
+) -> Result<bool, AppError> {
+    let Operation::Write { id } = op else {
+        unreachable!()
+    };
+
+    let content = {
+        let artifacts = artifacts.lock().expect("poisoned lock");
+        let result = artifacts.get(&dep).expect("no write dependency");
+        match result {
+            Artifact::String(content) => content.clone(),
+            _ => panic!("writing unknown artifact"),
+        }
+    };
+
+    match output {
+        Output::Stdout => todo!(),
+        Output::Inplace => todo!(),
+        Output::Path(root) => {
+            let path = root.join(&*id);
+            fs::write(&path, content)
+                .await
+                .map_err(|err| AppError::write_error(err, path))?;
+        }
     }
 
     Ok(false)

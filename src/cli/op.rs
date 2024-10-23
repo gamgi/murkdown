@@ -18,6 +18,7 @@ pub enum Op {
     Parse,
     Preprocess,
     Compile,
+    Write,
     Graph,
     Finish,
 }
@@ -31,6 +32,7 @@ impl From<&Operation> for Op {
             Parse { .. } => Op::Parse,
             Preprocess { .. } => Op::Preprocess,
             Compile { .. } => Op::Compile,
+            Write { .. } => Op::Write,
             Graph { .. } => Op::Graph,
             Finish => Op::Finish,
         }
@@ -58,6 +60,9 @@ pub enum Operation {
     Compile {
         id: Id,
     },
+    Write {
+        id: Id,
+    },
     Finish,
     Graph {
         graph_type: GraphType,
@@ -78,6 +83,7 @@ impl Display for Operation {
             Operation::Parse { id, .. } => write!(f, "Parse {}", id),
             Operation::Preprocess { id, .. } => write!(f, "Preprocess {}", id),
             Operation::Compile { id, .. } => write!(f, "Compile {}", id),
+            Operation::Write { id, .. } => write!(f, "Write {}", id),
             Operation::Graph { .. } => write!(f, "Graph"),
             Operation::Finish => write!(f, "Finish"),
         }
@@ -110,6 +116,7 @@ impl OpId {
             Op::Parse => format!("ast:{}", self.1),
             Op::Preprocess => format!("parse:{}", self.1),
             Op::Compile => format!("compile:{}", self.1),
+            Op::Write => unreachable!(),
             Op::Graph => String::from("graph:"),
             Op::Finish => String::from("finish:"),
         }
@@ -131,9 +138,11 @@ impl From<&Operation> for OpId {
         use Operation::*;
         match other {
             Gather { .. } => OpId::gather(),
-            Load { id, .. } | Parse { id, .. } | Preprocess { id } | Compile { id } => {
-                OpId(other.into(), id.clone())
-            }
+            Load { id, .. }
+            | Parse { id, .. }
+            | Preprocess { id }
+            | Compile { id }
+            | Write { id } => OpId(other.into(), id.clone()),
             Graph { .. } => OpId::graph(),
             Finish => OpId::finish(),
         }

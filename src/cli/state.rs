@@ -45,7 +45,7 @@ pub async fn handle_state(
         } else if let Some(e) = tasks.next().await {
             process_result(e, config, &mut tasks, &state).or_else(handle_error)?;
         } else if tasks.is_empty() {
-            process_graph(&mut tasks, &state);
+            process_graph(config, &mut tasks, &state);
 
             if done(&tasks) {
                 break Ok(());
@@ -127,6 +127,7 @@ fn process_error(error: AppError, config: &Config) -> Result<(), AppError> {
 }
 
 fn process_graph(
+    config: &Config,
     tasks: &mut FuturesUnordered<BoxFuture<'static, Result<bool, AppError>>>,
     state: &State,
 ) {
@@ -149,6 +150,7 @@ fn process_graph(
             let arts = state.artifacts.clone();
             let ops = state.operations.clone();
             let locs = state.locations.clone();
+            let out = config.output.clone().expect("output");
 
             match vertex {
                 Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
@@ -159,6 +161,9 @@ fn process_graph(
                 }
                 Operation::Compile { .. } => {
                     tasks.push(task::compile(op, dep.unwrap(), arts).boxed())
+                }
+                Operation::Write { .. } => {
+                    tasks.push(task::write(op, dep.unwrap(), arts, out).boxed())
                 }
                 Operation::Graph { .. } => tasks.push(task::graph(op, ops).boxed()),
                 Operation::Finish => {}

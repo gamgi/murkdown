@@ -1,9 +1,11 @@
+use std::path::PathBuf;
+
 use clap::{Parser, ValueEnum};
 use futures::StreamExt;
 
 use super::{
     reader::Reader,
-    types::{AppError, Event, EventTx},
+    types::{AppError, Event, EventTx, Output},
 };
 
 #[derive(Parser, Debug, Default)]
@@ -13,8 +15,23 @@ pub(crate) struct Config {
     #[clap(long, global = true)]
     pub interactive: bool,
 
+    /// Output path or target
+    ///
+    /// [default: ./build, possible values: stdout, <PATH>]
+    #[clap(
+        short,
+        long,
+        default_value = "./build",
+        value_parser = parse_out,
+        hide_default_value = true
+    )]
+    #[clap(global = true)]
+    pub output: Option<Output>,
+
     /// Progress output format
-    #[clap(long, default_value = "auto", value_parser = parse_progress)]
+    ///
+    /// [default: auto, possible values: auto, plain]
+    #[clap(long, default_value = "auto", value_parser = parse_progress, hide_default_value = true)]
     #[clap(global = true)]
     pub progress: &'static str,
 
@@ -39,12 +56,12 @@ pub(crate) enum Command {
         #[arg(default_values_t = [".".to_string()])]
         paths: Vec<String>,
     },
-    //// Load content into memory
+    /// Load content into memory
     Load {
         /// Input paths
         paths: Vec<String>,
     },
-    //// Build sources
+    /// Build sources
     Build {
         /// At what semantic level(s) should output be split to files
         #[clap(short, long = "split", value_name = "SPLIT")]
@@ -72,6 +89,21 @@ pub async fn handle(event_tx: EventTx, config: &Config) -> Result<(), AppError> 
             .map_err(|_| AppError::send_error())?;
     }
     Ok(())
+}
+
+fn parse_out(arg: &str) -> Result<Output, &'static str> {
+    match arg {
+        uri if uri.starts_with("stdout") => Ok(Output::Stdout),
+        uri if uri.starts_with("file://") || !uri.contains("://") => {
+            let path: PathBuf = arg.trim_start_matches("file://").into();
+            if path.is_file() {
+                Err("Output must be a directory")
+            } else {
+                Ok(Output::Path(path))
+            }
+        }
+        _ => Err("Unknown scheme"),
+    }
 }
 
 fn parse_progress(arg: &str) -> Result<&'static str, &'static str> {
