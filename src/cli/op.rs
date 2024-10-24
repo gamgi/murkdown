@@ -109,6 +109,18 @@ impl OpId {
         Self(Op::Load, id.into())
     }
 
+    pub fn parse(id: impl Into<Arc<str>>) -> Self {
+        Self(Op::Parse, id.into())
+    }
+
+    pub fn preprocess(id: impl Into<Arc<str>>) -> Self {
+        Self(Op::Preprocess, id.into())
+    }
+
+    pub fn copy(id: impl Into<Arc<str>>) -> Self {
+        Self(Op::Copy, id.into())
+    }
+
     pub fn finish() -> Self {
         Self(Op::Finish, Arc::from("Finish"))
     }

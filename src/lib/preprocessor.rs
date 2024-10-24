@@ -5,6 +5,8 @@ use crate::ast::{Node, NodeBuilder};
 use crate::parser::Rule;
 use crate::types::{AstMap, LocationMap, Pointer, URI};
 
+static PREPROCESSABLE_PROPS: &[&str] = &["src", "ref"];
+
 /// Preprocess AST
 pub fn preprocess(
     node: &mut Node,
@@ -53,11 +55,15 @@ fn preprocess_includes(
         .as_ref()
         .map_or(&[] as &[_], Vec::as_slice)
         .iter()
-        .filter(|&(k, _)| &(**k) == "src");
-    for (_, uri_or_path) in props {
-        let (schema, path) = uri_or_path
-            .split_once(':')
-            .unwrap_or(("parse", uri_or_path));
+        .filter(|&(k, _)| PREPROCESSABLE_PROPS.contains(&&**k));
+    for (key, uri_or_path) in props {
+        let (schema, path) = match &**key {
+            "src" => uri_or_path
+                .split_once(':')
+                .unwrap_or(("parse", uri_or_path)),
+            "ref" => uri_or_path.split_once(':').unwrap_or(("copy", uri_or_path)),
+            _ => unreachable!(),
+        };
         let full_path = resolve_path(path, locs.keys(), context).unwrap_or(path);
         let uri = format!("{schema}:{full_path}");
 

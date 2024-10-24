@@ -313,3 +313,6 @@ pub async fn graph(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<boo
 
     Ok(true)
 }
+
+#[cfg(test)]
+mod tests;
