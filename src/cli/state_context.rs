@@ -33,7 +33,7 @@ impl State {
         }
     }
 
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub fn insert_artifact(&self, uri: &str, art: Artifact) {
         let mut arts = self.artifacts.lock().expect("poisoned lock");
         arts.insert(uri.to_string(), art);

@@ -8,7 +8,7 @@ use murkdown::types::{LibErrorPathCtx, LocationMap, URI};
 use murkdown::{compiler, parser};
 use murkdown::{preprocessor, types::AstMap};
 use tokio::fs;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 use super::{
     graph::OpGraph,
@@ -48,6 +48,11 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
         panic!()
     };
     let mut graph = operations.lock().expect("poisoned lock");
+    let is_source_or_explicitly_included = |e: &DirEntry| {
+        let path = e.path();
+        let path_is_md = path.extension().map(|s| s == "md").unwrap_or(false);
+        path_is_md || paths.iter().any(|p| *p == path)
+    };
 
     // schedule dependent tasks
     for path in paths {
@@ -56,6 +61,7 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
             .filter_entry(is_visible)
             .filter_map(Result::ok)
             .filter(is_file)
+            .filter(is_source_or_explicitly_included)
             .map(into_uri_path_tuple);
 
         for (id, path) in walker {
