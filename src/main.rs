@@ -6,6 +6,7 @@ use cli::{
     logger::setup_logging,
     state,
     types::{AppError, Event},
+    utils::handle_exit,
 };
 use tokio::{sync, try_join};
 
@@ -15,8 +16,9 @@ async fn main() -> Result<(), AppError> {
     let (tx, rx) = sync::mpsc::unbounded_channel::<Event>();
     setup_logging(&config);
 
-    let handle_state = state::handle(tx.clone(), rx, &config);
+    let handle_state = state::handle(rx, &config);
     let handle_commands = command::handle(tx, &config);
+    let run = try_join!(handle_state, handle_commands).and(Ok(()));
 
-    try_join!(handle_state, handle_commands).map(|_| ())
+    run.or_else(handle_exit)
 }

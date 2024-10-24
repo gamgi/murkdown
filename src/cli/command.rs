@@ -73,6 +73,9 @@ pub(crate) enum Command {
         #[arg(default_values_t = [".".to_string()])]
         paths: Vec<String>,
     },
+    /// Exit interactive mode
+    #[clap(hide = true)]
+    Exit,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

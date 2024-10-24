@@ -11,17 +11,14 @@ use super::graph_sorter::grouped_topological_sort;
 use super::op::{OpId, Operation};
 use super::state_context::State;
 use super::task;
+use super::types::AppErrorKind;
 use super::utils::parents;
 use super::{
     command::Config,
-    types::{AppError, Event, EventRx, EventTx},
+    types::{AppError, Event, EventRx},
 };
 
-pub async fn handle(
-    _event_tx: EventTx,
-    event_rx: EventRx,
-    config: &Config,
-) -> Result<(), AppError> {
+pub async fn handle(event_rx: EventRx, config: &Config) -> Result<(), AppError> {
     let state = State::new();
 
     handle_state(event_rx, config, state).await
@@ -96,6 +93,7 @@ fn process_event(
                 state
                     .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
             }
+            Command::Exit => return Err(AppError::exit(0)),
         },
         Event::Command(Err(_)) => todo!(),
         Event::CommandOk => todo!(),
@@ -119,10 +117,14 @@ fn process_result(
 }
 
 fn process_error(error: AppError, config: &Config) -> Result<(), AppError> {
-    error!("{}", error);
-    match config.interactive {
-        true => Ok(()),
-        false => Err(error),
+    if let AppErrorKind::Exit(_) = error.inner() {
+        Err(error)
+    } else {
+        error!("{}", error);
+        match config.interactive {
+            true => Ok(()),
+            false => Err(error),
+        }
     }
 }
 

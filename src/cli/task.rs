@@ -83,6 +83,7 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
                     Operation::Write { id: id.clone() },
                     Operation::Finish,
                 ]),
+                _ => panic!("gather on bad command"),
             }
         }
     }

@@ -32,6 +32,8 @@ pub enum Output {
 #[derive(Error, Debug, thiserror_ext::Box, thiserror_ext::Construct)]
 #[thiserror_ext(newtype(name = AppError))]
 pub enum AppErrorKind {
+    #[error("interrupted by user")]
+    Exit(u8),
     #[error("could not parse command")]
     ClapError(#[from] ClapError),
     #[error("internal channel error")]
