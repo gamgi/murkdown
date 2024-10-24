@@ -136,8 +136,8 @@ impl OpId {
             Op::Parse => format!("ast:{}", self.1),
             Op::Preprocess => format!("parse:{}", self.1),
             Op::Compile => format!("compile:{}", self.1),
-            Op::Write => panic!("write has no URI"),
-            Op::Copy => panic!("copy has no URI"),
+            Op::Write => format!("write:{}", self.1),
+            Op::Copy => format!("copy:{}", self.1),
             Op::Graph => String::from("graph:"),
             Op::Finish => String::from("finish:"),
         }

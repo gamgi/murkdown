@@ -1,19 +1,12 @@
 use murkdown::ast::NodeBuilder;
-use murkdown::types::URI;
 
-use crate::cli::task::preprocess;
+use crate::cli::command::GraphType;
+use crate::cli::task::{graph, preprocess};
 use crate::cli::{
     artifact::Artifact,
     op::{OpId, Operation},
     state_context::State,
 };
-
-fn get_params() -> (Operation, URI, State) {
-    let op = Operation::Preprocess { id: "foo".into() };
-    let dep = op.uri();
-    let ctx = State::new();
-    (op, dep, ctx)
-}
 
 #[tokio::test]
 async fn test_preprocess_adds_src_ops() {
@@ -22,7 +15,9 @@ async fn test_preprocess_adds_src_ops() {
             .add_prop(("src".into(), "bar".into()))
             .done()])
         .done();
-    let (op, dep, ctx) = get_params();
+    let op = Operation::Preprocess { id: "foo".into() };
+    let dep = op.uri();
+    let ctx = State::new();
     ctx.insert_artifact(&dep, Artifact::Ast(node));
 
     preprocess(
@@ -58,7 +53,9 @@ async fn test_preprocess_adds_ref_ops() {
             .add_prop(("ref".into(), "bar".into()))
             .done()])
         .done();
-    let (op, dep, ctx) = get_params();
+    let op = Operation::Preprocess { id: "foo".into() };
+    let dep = op.uri();
+    let ctx = State::new();
     ctx.insert_artifact(&dep, Artifact::Ast(node));
 
     preprocess(
@@ -77,4 +74,18 @@ async fn test_preprocess_adds_ref_ops() {
     result.sort();
 
     assert_eq!(result, [&OpId::preprocess("foo"), &OpId::copy("bar"),]);
+}
+
+#[tokio::test]
+async fn test_graph() {
+    let node = NodeBuilder::root()
+        .children(vec![NodeBuilder::block(">")
+            .add_prop(("ref".into(), "bar".into()))
+            .done()])
+        .done();
+    let op = Operation::Graph { graph_type: GraphType::Dependencies };
+    let ctx = State::new();
+    ctx.insert_artifact(&op.uri(), Artifact::Ast(node));
+
+    graph(op, ctx.operations).await.unwrap();
 }
