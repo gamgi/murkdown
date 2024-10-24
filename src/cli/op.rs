@@ -19,6 +19,7 @@ pub enum Op {
     Preprocess,
     Compile,
     Write,
+    Copy,
     Graph,
     Finish,
 }
@@ -33,6 +34,7 @@ impl From<&Operation> for Op {
             Preprocess { .. } => Op::Preprocess,
             Compile { .. } => Op::Compile,
             Write { .. } => Op::Write,
+            Copy { .. } => Op::Copy,
             Graph { .. } => Op::Graph,
             Finish => Op::Finish,
         }
@@ -63,6 +65,10 @@ pub enum Operation {
     Write {
         id: Id,
     },
+    Copy {
+        id: Id,
+        path: PathBuf,
+    },
     Finish,
     Graph {
         graph_type: GraphType,
@@ -84,6 +90,7 @@ impl Display for Operation {
             Operation::Preprocess { id, .. } => write!(f, "Preprocess {}", id),
             Operation::Compile { id, .. } => write!(f, "Compile {}", id),
             Operation::Write { id, .. } => write!(f, "Write {}", id),
+            Operation::Copy { id, .. } => write!(f, "Copy {}", id),
             Operation::Graph { .. } => write!(f, "Graph"),
             Operation::Finish => write!(f, "Finish"),
         }
@@ -97,6 +104,7 @@ impl OpId {
     pub fn gather() -> Self {
         Self(Op::Gather, Arc::from("Gather"))
     }
+
     pub fn load(id: impl Into<Arc<str>>) -> Self {
         Self(Op::Load, id.into())
     }
@@ -116,7 +124,8 @@ impl OpId {
             Op::Parse => format!("ast:{}", self.1),
             Op::Preprocess => format!("parse:{}", self.1),
             Op::Compile => format!("compile:{}", self.1),
-            Op::Write => unreachable!(),
+            Op::Write => panic!("write has no URI"),
+            Op::Copy => panic!("copy has no URI"),
             Op::Graph => String::from("graph:"),
             Op::Finish => String::from("finish:"),
         }
@@ -142,7 +151,8 @@ impl From<&Operation> for OpId {
             | Parse { id, .. }
             | Preprocess { id }
             | Compile { id }
-            | Write { id } => OpId(other.into(), id.clone()),
+            | Write { id }
+            | Copy { id, .. } => OpId(other.into(), id.clone()),
             Graph { .. } => OpId::graph(),
             Finish => OpId::finish(),
         }

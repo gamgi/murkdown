@@ -40,7 +40,7 @@ pub enum AppErrorKind {
     BadPath(PathBuf),
     #[error("invalid URI: {0}")]
     BadUri(String),
-    #[error("unknown URI schema: {0}")]
+    #[error("unknown URI schema `{0}`")]
     UnknownSchema(String),
     #[error("could not read `{path}`: {source}")]
     ReadError {
@@ -53,6 +53,13 @@ pub enum AppErrorKind {
         #[backtrace]
         source: std::io::Error,
         path: PathBuf,
+    },
+    #[error("could not copy `{source_path}` to `{target_path}`: {source}")]
+    CopyError {
+        #[backtrace]
+        source: std::io::Error,
+        source_path: PathBuf,
+        target_path: PathBuf,
     },
     #[error(transparent)]
     Lib(#[from] LibError),

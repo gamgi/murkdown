@@ -165,6 +165,7 @@ fn process_graph(
                 Operation::Write { .. } => {
                     tasks.push(task::write(op, dep.unwrap(), arts, out).boxed())
                 }
+                Operation::Copy { .. } => tasks.push(task::copy(op, out).boxed()),
                 Operation::Graph { .. } => tasks.push(task::graph(op, ops).boxed()),
                 Operation::Finish => {}
             }

@@ -186,7 +186,16 @@ pub async fn preprocess(
                             op.clone(),
                         ]);
                     }
-                    _ => todo!("unknown schema"),
+                    "copy" => {
+                        graph.insert_node_chain([
+                            Operation::Copy {
+                                id: path.into(),
+                                path: PathBuf::from(path),
+                            },
+                            op.clone(),
+                        ]);
+                    }
+                    _ => return Err(AppError::unknown_schema(schema)),
                 }
             }
         }
@@ -240,13 +249,31 @@ pub async fn write(
     };
 
     match output {
-        Output::Stdout => todo!(),
-        Output::Inplace => todo!(),
+        Output::Stdout => println!("{content}"),
         Output::Path(root) => {
-            let path = root.join(&*id);
-            fs::write(&path, content)
+            let target = root.join(&*id);
+            fs::write(&target, content)
                 .await
-                .map_err(|err| AppError::write_error(err, path))?;
+                .map_err(|err| AppError::write_error(err, target))?;
+        }
+    }
+
+    Ok(false)
+}
+
+/// Copy artifact to target
+pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
+    let Operation::Copy { id, path: source } = op else {
+        unreachable!()
+    };
+
+    match output {
+        Output::Stdout => todo!(),
+        Output::Path(root) => {
+            let target = root.join(&*id);
+            fs::copy(source.clone(), target.clone())
+                .await
+                .map_err(|err| AppError::copy_error(err, source, target))?;
         }
     }
 
