@@ -12,10 +12,12 @@ version = "0.1.0"
 name = "murkdown"
 path = "src/lib/lib.rs"
 doctest = false
+doc = false
 
 [[bin]]
 name = "md"
 path = "src/main.rs"
+doc = false
 
 [dependencies]
 base64 = "0.22.1"
@@ -37,3 +39,4 @@ walkdir = "2.5.0"
 [dev-dependencies]
 indoc = "2"
 pretty_assertions = "1.4.0"
+trycmd = "0.15.7"
