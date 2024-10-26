@@ -73,7 +73,7 @@ async fn test_preprocess_adds_ref_ops() {
     let mut result = graph.iter().map(|(v, _, _)| v).collect::<Vec<_>>();
     result.sort();
 
-    assert_eq!(result, [&OpId::preprocess("foo"), &OpId::copy("bar"),]);
+    assert_eq!(result, [&OpId::copy("bar"), &OpId::finish(),]);
 }
 
 #[tokio::test]

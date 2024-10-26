@@ -199,7 +199,7 @@ pub async fn preprocess(
                                 id: path.into(),
                                 path: PathBuf::from(path),
                             },
-                            op.clone(),
+                            Operation::Finish
                         ]);
                     }
                     _ => return Err(AppError::unknown_schema(schema)),
