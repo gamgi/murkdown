@@ -8,7 +8,7 @@ pub(crate) use rule::Rule;
 
 use crate::ast::Node;
 use crate::parser;
-use crate::types::LibError;
+use crate::types::{LibError, Pointer};
 
 /// Compile AST to string
 pub fn compile(node: &mut Node) -> Result<String, LibError> {
@@ -39,7 +39,13 @@ fn compile_recusive<'a, 'c>(
         let value = lang.evaluate(&mut instructions, &mut *ctx, node)?;
         out.push_str(&value);
 
-        if let Some(children) = node.children.as_mut() {
+        if let Some(Pointer(weak)) = &node.pointer {
+            let mutex = weak.upgrade().unwrap();
+            let mut node = mutex.lock().unwrap();
+            if let Some(children) = node.children.as_mut() {
+                out.push_str(&compile_recusive(children, ctx, lang, &path)?);
+            }
+        } else if let Some(children) = node.children.as_mut() {
             out.push_str(&compile_recusive(children, ctx, lang, &path)?);
         }
 

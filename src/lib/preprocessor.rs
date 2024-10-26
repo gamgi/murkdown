@@ -93,14 +93,13 @@ fn preprocess_includes(
         // add dependency
         deps.insert(uri.clone());
 
-        // add ast
+        // add placeholder node to ast
         let arc = asts.entry(uri).or_insert_with(|| {
-            let root = NodeBuilder::root()
-                .value(node.value.clone())
-                .build()
-                .unwrap();
+            let root = NodeBuilder::root().build().unwrap();
             Arc::new(Mutex::new(root))
         });
+
+        // add pointer to node
         let pointer = Pointer(Arc::downgrade(arc));
         if node.children.is_some() {
             if node.rule == Rule::Section {

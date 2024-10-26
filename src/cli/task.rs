@@ -1,4 +1,5 @@
 use std::{
+    collections::hash_map::Entry,
     fmt::Write,
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -144,15 +145,30 @@ pub async fn preprocess(
     let ast = artifacts.get(&dep).expect("no preprocess dependency");
     let mut graph = operations.lock().expect("poisoned lock");
 
+    // NOTE: clone to keep source AST intact
     match ast.clone() {
         Artifact::Ast(mut node) => {
             let mut asts = asts.lock().expect("poisoned lock");
+            let uri = op.uri();
 
             let deps = {
                 let locs = locations.lock().expect("poisoned lock");
                 preprocessor::preprocess(&mut node, &mut asts, &locs, id)
             };
-            artifacts.insert(op.uri(), Artifact::Ast(node));
+
+            // upsert preprocessed node to ast
+            let arc = match asts.entry(uri.to_string()) {
+                Entry::Occupied(r) => {
+                    let mut mutex = r.get().lock().expect("poisoned lock");
+                    *mutex = node;
+                    &r.get().clone()
+                }
+                Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(node))),
+            };
+
+            // add artifact
+            let weak = Arc::downgrade(arc);
+            artifacts.insert(uri, Artifact::AstPointer(weak));
 
             // schedule dependent tasks
             for uri in deps {
@@ -224,13 +240,16 @@ pub async fn compile(
     let mut artifacts = artifacts.lock().expect("poisoned lock");
     let ast = artifacts.get(&dep).expect("no compile dependency");
 
-    match ast.clone() {
-        Artifact::Ast(mut node) => {
-            let result = compiler::compile(&mut node).unwrap();
-            artifacts.insert(op.uri(), Artifact::String(result));
+    let result = match ast.clone() {
+        Artifact::Ast(mut node) => compiler::compile(&mut node).unwrap(),
+        Artifact::AstPointer(pointer) => {
+            let mutex = pointer.upgrade().unwrap();
+            let mut node = mutex.lock().unwrap();
+            compiler::compile(&mut node).unwrap()
         }
         _ => panic!("compiling unknown artifact"),
-    }
+    };
+    artifacts.insert(op.uri(), Artifact::String(result));
 
     Ok(false)
 }

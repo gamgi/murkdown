@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Mutex, Weak},
+};
 
 use murkdown::ast::Node;
 
@@ -10,4 +13,5 @@ pub enum Artifact {
     String(String),
     Binary(Vec<u8>),
     Ast(Node),
+    AstPointer(Weak<Mutex<Node>>),
 }

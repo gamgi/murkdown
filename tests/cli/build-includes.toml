@@ -1,0 +1,13 @@
+bin.name = "md"
+args = "--output stdout build a.md"
+stdout = """
+...
+hello
+
+> This file is included
+> > And contains a block
+
+world
+
+"""
+stderr = ""
