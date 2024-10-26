@@ -1,0 +1,12 @@
+bin.name = "md"
+args = "--interactive --output stdout"
+stdin = """
+build file.md
+exit
+"""
+stdout = """
+...
+> hello
+
+"""
+stderr = ""
