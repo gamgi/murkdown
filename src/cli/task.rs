@@ -199,7 +199,7 @@ pub async fn preprocess(
                                 id: path.into(),
                                 path: PathBuf::from(path),
                             },
-                            Operation::Finish
+                            Operation::Finish,
                         ]);
                     }
                     _ => return Err(AppError::unknown_schema(schema)),
@@ -275,7 +275,7 @@ pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
     };
 
     match output {
-        Output::Stdout => todo!(),
+        Output::Stdout => {}
         Output::Path(root) => {
             let target = root.join(&*id);
             fs::copy(source.clone(), target.clone())

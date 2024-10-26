@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{atomic::AtomicBool, Arc, Mutex},
 };
 
 use murkdown::types::{AstMap, LocationMap};
@@ -20,6 +20,7 @@ pub struct State {
     pub locations: Arc<Mutex<LocationMap>>,
     pub operations: Arc<Mutex<OpGraph>>,
     pub operations_processed: Arc<Mutex<HashSet<OpId>>>,
+    pub should_exit: Arc<AtomicBool>,
 }
 
 impl State {
@@ -30,6 +31,7 @@ impl State {
             locations: Arc::new(Mutex::new(HashMap::new())),
             operations: Arc::new(Mutex::new(OpGraph::new())),
             operations_processed: Arc::new(Mutex::new(HashSet::new())),
+            should_exit: Arc::new(AtomicBool::new(false)),
         }
     }
 

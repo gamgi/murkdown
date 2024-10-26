@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::atomic::Ordering};
 
 use futures::stream::FuturesUnordered;
 use futures::{future::BoxFuture, FutureExt};
@@ -31,7 +31,9 @@ pub async fn handle_state(
 ) -> Result<(), AppError> {
     let mut tasks = FuturesUnordered::<BoxFuture<Result<bool, _>>>::new();
     let handle_error = |e| process_error(e, config);
-    let done = |tasks: &FuturesUnordered<_>| tasks.is_empty() && !config.interactive;
+    let done = |tasks: &FuturesUnordered<_>, state: &State| {
+        tasks.is_empty() && (!config.interactive || state.should_exit.load(Ordering::Relaxed))
+    };
 
     loop {
         // Allow other tasks to run
@@ -44,7 +46,7 @@ pub async fn handle_state(
         } else if tasks.is_empty() {
             process_graph(config, &mut tasks, &state);
 
-            if done(&tasks) {
+            if done(&tasks, &state) {
                 break Ok(());
             }
         }
@@ -93,7 +95,7 @@ fn process_event(
                 state
                     .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
             }
-            Command::Exit => return Err(AppError::exit(0)),
+            Command::Exit => state.should_exit.store(true, Ordering::Relaxed),
         },
         Event::Command(Err(_)) => todo!(),
         Event::CommandOk => todo!(),
