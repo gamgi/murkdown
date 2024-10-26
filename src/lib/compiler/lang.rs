@@ -81,6 +81,12 @@ impl Lang {
                             .push(value.to_string().into());
                     }
                 }
+                ("WRITE", [StackRef(stack)]) => {
+                    let stack = ctx.stacks.get(stack.as_str());
+                    if let Some(value) = stack.and_then(|v| v.last()) {
+                        out.push_str(value);
+                    }
+                }
                 ("WRITE", [Str(value)]) => out.push_str(&replace(value, ctx, node)),
                 ("WRITEALL", [StackRef(stack)]) => {
                     let stack = ctx.stacks.get(stack.as_str());

@@ -1,14 +1,40 @@
 COMPILE RULES:
+/* root */
 ^[...]$
   PUSH join "\n"
-  NOOP
 
-[...]$
-  PUSH prefix ">"
+/* callout block */
+[...TIP...]$
+  PUSH prefix "\m"
+  WRITEALL prefix
+  WRITE " [!TIP]\n"
   YIELD
   POP prefix
 
+/* root level block */
+^[...] [SEC...] [...]$
+  PUSH prefix "\m"
+  YIELD
+  POP prefix
+
+/* heading block */
+[...] [SEC...] [...HEADING...]$
+  PUSH prefix "\m"
+  YIELD
+  POP prefix
+
+/* nested block */
+[...] [SEC...] [...]$
+  PUSH prefix " \m"
+  YIELD
+  POP prefix
+
+/* root level line */
+^[...] [SEC...] LINE$
+  WRITE prefix
+  WRITE "\v"
+
+/* line */
 LINE$
   WRITEALL prefix
   WRITE " \v"
-

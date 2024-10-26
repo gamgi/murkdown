@@ -6,7 +6,7 @@ exit
 """
 stdout = """
 ...
-> hello
+hello
 
 """
 stderr = ""

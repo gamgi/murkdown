@@ -1,0 +1,3 @@
+bin.name = "md"
+args = "--output . build file.md"
+stderr = ""

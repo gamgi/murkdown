@@ -60,15 +60,17 @@ fn compile_recusive<'a, 'c>(
 
 #[cfg(test)]
 mod tests {
+    use indoc::indoc;
+
     use super::*;
     use crate::ast::NodeBuilder;
 
     #[test]
     fn test_compile() {
         let mut node = NodeBuilder::root()
-            .children(vec![NodeBuilder::block(">")
+            .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
-                .add_child(Node::new_line("foo"))
+                .add_section(vec![Node::new_line("foo")])
                 .done()])
             .done();
         let result = compile(&mut node).unwrap();
@@ -79,20 +81,28 @@ mod tests {
     #[test]
     fn test_compile_nested() {
         let mut node = NodeBuilder::root()
-            .children(vec![NodeBuilder::block(">")
+            .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
-                .add_child(Node::new_line("foo"))
-                .add_child(
+                .add_section(vec![
+                    Node::new_line("foo"),
                     NodeBuilder::block(">")
                         .add_prop(("src".into(), "bar".into()))
-                        .add_child(Node::new_line("bar"))
+                        .add_section(vec![Node::new_line("bar")])
                         .done(),
-                )
-                .add_child(Node::new_line("baz"))
+                    Node::new_line("baz"),
+                ])
                 .done()])
             .done();
         let result = compile(&mut node).unwrap();
-
-        assert_eq!(&result, "> foo\n>> bar\n> baz\n");
+        assert_eq!(
+            result,
+            indoc! {
+            r#"
+            > foo
+            > > bar
+            > baz
+            "#
+            }
+        );
     }
 }
