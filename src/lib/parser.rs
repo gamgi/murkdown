@@ -53,11 +53,15 @@ fn parse_recursive<'a>(
         Rule::Root | Rule::Block => {
             let base = NodeBuilder::from(&pair);
             let mut pairs = pair.into_inner().peekable();
-            let _ = take_marker(&mut pairs);
-            let _ = take_headers(&mut pairs);
+            let marker = take_marker(&mut pairs);
+            let headers = take_headers(&mut pairs);
             let props = take_props(&mut pairs);
             let sections = parse_recursive(pairs);
-            let node = base.add_children(sections).try_props(props);
+            let node = base
+                .marker(marker)
+                .headers(headers)
+                .add_children(sections)
+                .try_props(props);
             Some(node.build().unwrap())
         }
         Rule::RootBlock | Rule::LongBlock | Rule::ShortBlock => {

@@ -33,10 +33,33 @@ fn preprocess_recursive(
     }
     match node.rule {
         Rule::Root => {
+            preprocess_headers(node);
             preprocess_includes(node, asts, locs, context, deps);
         }
         Rule::Block => {
+            preprocess_headers(node);
             preprocess_includes(node, asts, locs, context, deps);
+        }
+        _ => {}
+    }
+}
+
+/// Adds implicit headers to nodes
+fn preprocess_headers(node: &mut Node) {
+    match node.marker.as_deref() {
+        Some("#") => {
+            let headers = node.headers.get_or_insert_with(Default::default);
+            let header = Arc::from("HEADING");
+            if !headers.contains(&header) {
+                headers.push(header);
+            }
+        }
+        Some("*") => {
+            let headers = node.headers.get_or_insert_with(Default::default);
+            let header = Arc::from("LIST");
+            if !headers.contains(&header) {
+                headers.push(header);
+            }
         }
         _ => {}
     }

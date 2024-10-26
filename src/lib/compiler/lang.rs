@@ -105,6 +105,7 @@ fn replace<'a>(template: &'a str, ctx: &Context, node: &Node) -> Cow<'a, str> {
     }
     let mut result = template
         .replace(r#"\v"#, node.value.as_deref().unwrap_or_default())
+        .replace(r#"\m"#, node.marker.as_deref().unwrap_or_default())
         .replace(r#"\n"#, "\n");
 
     // variables from props

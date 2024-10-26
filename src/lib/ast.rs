@@ -17,6 +17,8 @@ pub struct Node {
     pub props: Option<Props>,
     #[builder(setter(into))]
     pub value: Option<Arc<str>>,
+    #[builder(setter(into))]
+    pub marker: Option<Arc<str>>,
     pub headers: Option<Vec<Arc<str>>>,
     #[builder(setter(strip_option))]
     pub pointer: Option<Pointer>,
@@ -79,8 +81,8 @@ impl NodeBuilder {
         Self::new(Rule::Root)
     }
 
-    pub fn block(_marker: &'static str) -> Self {
-        Self::new(Rule::Block)
+    pub fn block(marker: &'static str) -> Self {
+        Self::new(Rule::Block).marker(Arc::from(marker))
     }
 
     pub fn add_children(self, children: impl IntoIterator<Item = Node>) -> Self {
@@ -103,8 +105,10 @@ impl From<&Pair<'_, Rule>> for NodeBuilder {
             r => r,
         };
         let is_line = matches!(rule, Rule::Line);
+        let is_block = matches!(rule, Rule::Block | Rule::Root);
         match pair.as_span().as_str() {
             "" if !is_line => NodeBuilder::new(rule),
+            value if is_block => NodeBuilder::new(rule).marker(Some(Arc::from(value))),
             value => NodeBuilder::new(rule).value(Arc::from(value)),
         }
     }
