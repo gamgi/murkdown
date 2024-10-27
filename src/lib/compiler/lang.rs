@@ -1,27 +1,34 @@
 use std::{borrow::Cow, sync::Arc};
 
 use super::{
-    rule::{self, Context, LangInstr, LangRule},
+    rule::{self, Context, LangInstr},
     rule_argument::Arg,
 };
-use crate::{ast::Node, types::LibError};
+use crate::{
+    ast::Node,
+    types::{LangMap, LibError},
+};
 
 pub struct Lang {
-    pub preprocess_rules: Vec<LangRule>,
-    pub compile_rules: Vec<LangRule>,
+    pub rules: LangMap,
 }
 
 /// A set of compiler rules
 impl Lang {
     pub fn new(input: &'static str) -> Result<Lang, LibError> {
-        let (preprocess_rules, compile_rules) = rule::parse(input)?;
+        let rules = rule::parse(input)?;
 
-        Ok(Lang { preprocess_rules, compile_rules })
+        Ok(Lang { rules })
     }
 
     /// Get instructions for an AST path
-    pub(crate) fn get_instructions(&self, path: &str) -> impl Iterator<Item = &LangInstr> {
-        match self.compile_rules.iter().find(|r| r.matches(path)) {
+    pub(crate) fn get_instructions(
+        &self,
+        stage: &'static str,
+        path: &str,
+    ) -> impl Iterator<Item = &LangInstr> {
+        let rules = self.rules.get(stage);
+        match rules.unwrap().iter().find(|r| r.matches(path)) {
             Some(rule) => rule.instructions.iter(),
             None => (&[] as &[LangInstr]).iter(),
         }
@@ -154,7 +161,7 @@ mod tests {
         let lang = Lang::new(input).unwrap();
         let mut node = Node::default();
 
-        let mut instructions = lang.get_instructions("[rule]");
+        let mut instructions = lang.get_instructions("COMPILE", "[rule]");
         let mut ctx = Context::default();
 
         let value = lang
@@ -181,7 +188,7 @@ mod tests {
             .add_prop(("word".into(), "world".into()))
             .done();
 
-        let mut instructions = lang.get_instructions("[rule]");
+        let mut instructions = lang.get_instructions("COMPILE", "[rule]");
         let mut ctx = Context::default();
 
         let value = lang

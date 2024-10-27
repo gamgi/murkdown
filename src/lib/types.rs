@@ -6,13 +6,19 @@ use std::{
 
 use thiserror::Error;
 
-use crate::{ast::Node, compiler, parser};
+use crate::{
+    ast::Node,
+    compiler::{self, rule::LangRule},
+    parser,
+};
 
 /// Uniform Resource Identifier (eg. load:foo.fd)
 pub type URI = String;
 
 /// Map from URI to AST node
 pub type AstMap = HashMap<String, Arc<Mutex<Node>>>;
+
+pub(crate) type LangMap = HashMap<&'static str, Vec<LangRule>>;
 
 /// Map from Resource path (eg. foo.fd) to location on disk
 pub type LocationMap = HashMap<String, PathBuf>;

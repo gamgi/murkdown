@@ -8,7 +8,7 @@ use pest_derive::Parser;
 use regex::Regex;
 
 use crate::compiler::rule_argument::Arg;
-use crate::types::LibError;
+use crate::types::{LangMap, LibError};
 
 #[derive(Parser)]
 #[grammar = "lib/compiler/rule_grammar.pest"]
@@ -56,7 +56,7 @@ pub struct Context<'a> {
 }
 
 /// Parse input to rules
-pub fn parse(input: &str) -> Result<(Vec<LangRule>, Vec<LangRule>), LibError> {
+pub fn parse(input: &str) -> Result<LangMap, LibError> {
     RawRuleParser::parse(Rule::Root, input)
         .map_err(|e| LibError::from(Box::new(e)))
         .and_then(parse_root)
@@ -64,7 +64,7 @@ pub fn parse(input: &str) -> Result<(Vec<LangRule>, Vec<LangRule>), LibError> {
 
 fn parse_root<'a>(
     mut pairs: impl Iterator<Item = Pair<'a, Rule>> + 'a,
-) -> Result<(Vec<LangRule>, Vec<LangRule>), LibError> {
+) -> Result<LangMap, LibError> {
     let mut compile_rules = Vec::new();
     let mut preprocess_rules = Vec::new();
 
@@ -80,7 +80,10 @@ fn parse_root<'a>(
         }
     }
 
-    Ok((preprocess_rules, compile_rules))
+    Ok(HashMap::from([
+        ("COMPILE", compile_rules),
+        ("PREPROCESS", preprocess_rules),
+    ]))
 }
 
 /// Walk pairs
@@ -137,8 +140,9 @@ mod tests {
         };
         let lang = Lang::new(input).unwrap();
 
-        assert_eq!(lang.compile_rules.len(), 1);
-        let rule = &lang.compile_rules[0];
+        let compile_rules = lang.rules.get("COMPILE").unwrap();
+        assert_eq!(compile_rules.len(), 1);
+        let rule = &compile_rules[0];
         let expected = LangRule {
             path: "[rule...]".to_string(),
             regex: Regex::new(r#"\[rule[^]]*\]"#).unwrap(),
