@@ -14,6 +14,7 @@ type Id = Arc<str>;
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, Ord, PartialOrd)]
 pub enum Op {
     Gather,
+    Exec,
     Load,
     Parse,
     Preprocess,
@@ -29,6 +30,7 @@ impl From<&Operation> for Op {
         use Operation::*;
         match other {
             Gather { .. } => Op::Gather,
+            Exec { .. } => Op::Exec,
             Load { .. } => Op::Load,
             Parse { .. } => Op::Parse,
             Preprocess { .. } => Op::Preprocess,
@@ -49,6 +51,10 @@ pub enum Operation {
         paths: Vec<PathBuf>,
         #[allow(dead_code)]
         splits: Option<Vec<String>>,
+    },
+    Exec {
+        id: Id,
+        cmd: String,
     },
     Load {
         id: Id,
@@ -86,6 +92,7 @@ impl Display for Operation {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Operation::Gather { .. } => write!(f, "Gather"),
+            Operation::Exec { id, .. } => write!(f, "Exec {}", id),
             Operation::Load { id, .. } => write!(f, "Load {}", id),
             Operation::Parse { id, .. } => write!(f, "Parse {}", id),
             Operation::Preprocess { id, .. } => write!(f, "Preprocess {}", id),
@@ -136,6 +143,7 @@ impl OpId {
     pub fn uri(&self) -> URI {
         match self.0 {
             Op::Gather => String::from("gather:"),
+            Op::Exec => format!("exec:{}", self.1),
             Op::Load => format!("file:{}", self.1),
             Op::Parse => format!("ast:{}", self.1),
             Op::Preprocess => format!("parse:{}", self.1),
@@ -164,6 +172,7 @@ impl From<&Operation> for OpId {
         match other {
             Gather { .. } => OpId::gather(),
             Load { id, .. }
+            | Exec { id, .. }
             | Parse { id, .. }
             | Preprocess { id }
             | Compile { id }

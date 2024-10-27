@@ -235,6 +235,13 @@ pub async fn preprocess(
                     _ => return Err(AppError::unknown_schema(schema)),
                 }
             }
+
+            for dep in exec_deps {
+                let Dependency::Exec { cmd, name, .. } = dep else {
+                    unreachable!()
+                };
+                graph.insert_node_chain([Operation::Exec { id: name.into(), cmd }, op.clone()]);
+            }
         }
         _ => panic!("preprocessing unknown artifact"),
     }
