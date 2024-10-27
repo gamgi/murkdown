@@ -5,7 +5,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use murkdown::types::{LibErrorPathCtx, LocationMap, URI};
+use murkdown::{
+    ast::{Node, NodeBuilder},
+    types::{LibErrorPathCtx, LocationMap, URI},
+};
 use murkdown::{compiler, parser};
 use murkdown::{preprocessor, types::AstMap};
 use tokio::fs;
@@ -91,7 +94,11 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
 }
 
 /// Load files
-pub async fn load(op: Operation, artifacts: Arc<Mutex<ArtifactMap>>) -> Result<bool, AppError> {
+pub async fn load(
+    op: Operation,
+    asts: Arc<Mutex<AstMap>>,
+    artifacts: Arc<Mutex<ArtifactMap>>,
+) -> Result<bool, AppError> {
     let Operation::Load { path, .. } = &op else {
         unreachable!()
     };
@@ -101,9 +108,21 @@ pub async fn load(op: Operation, artifacts: Arc<Mutex<ArtifactMap>>) -> Result<b
     };
     let uri = op.uri();
 
+    // add node to ast
+    let mut asts = asts.lock().expect("poisoned lock");
+    asts.entry(uri.clone()).or_insert_with(|| {
+        let node = match &artifact {
+            Artifact::String(content) => NodeBuilder::root()
+                .add_section(content.split('\n').map(Node::new_line).collect())
+                .done(),
+            _ => todo!(),
+        };
+        Arc::new(Mutex::new(node))
+    });
+
     // add artifact
     let mut artifacts = artifacts.lock().expect("poisoned lock");
-    artifacts.insert(uri.clone(), artifact);
+    artifacts.insert(uri, artifact);
 
     Ok(false)
 }

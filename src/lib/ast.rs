@@ -85,7 +85,6 @@ impl NodeBuilder {
         Self::new(Rule::Block).marker(Arc::from(marker))
     }
 
-    #[cfg(test)]
     pub fn add_section(self, children: Vec<Node>) -> Self {
         let node = NodeBuilder::new(Rule::Section)
             .add_children(children)

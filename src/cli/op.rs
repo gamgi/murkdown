@@ -110,14 +110,17 @@ impl OpId {
         Self(Op::Load, id.into())
     }
 
+    #[cfg(test)]
     pub fn parse(id: impl Into<Arc<str>>) -> Self {
         Self(Op::Parse, id.into())
     }
 
+    #[cfg(test)]
     pub fn preprocess(id: impl Into<Arc<str>>) -> Self {
         Self(Op::Preprocess, id.into())
     }
 
+    #[cfg(test)]
     pub fn copy(id: impl Into<Arc<str>>) -> Self {
         Self(Op::Copy, id.into())
     }

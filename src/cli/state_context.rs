@@ -7,8 +7,9 @@ use std::{
 
 use murkdown::types::{AstMap, LocationMap};
 
+#[cfg(test)]
+use super::artifact::Artifact;
 use super::{
-    artifact::Artifact,
     graph::OpGraph,
     op::{OpId, Operation},
     types::ArtifactMap,

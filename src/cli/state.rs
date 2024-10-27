@@ -158,7 +158,7 @@ fn process_graph(
 
             match vertex {
                 Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
-                Operation::Load { .. } => tasks.push(task::load(op, arts).boxed()),
+                Operation::Load { .. } => tasks.push(task::load(op, asts, arts).boxed()),
                 Operation::Parse { .. } => tasks.push(task::parse(op, dep.unwrap(), arts).boxed()),
                 Operation::Preprocess { .. } => {
                     tasks.push(task::preprocess(op, dep.unwrap(), asts, ops, arts, locs).boxed())
