@@ -7,7 +7,7 @@ use std::{
 
 use murkdown::{
     ast::{Node, NodeBuilder},
-    types::{LibErrorPathCtx, LocationMap, URI},
+    types::{Dependency, LibErrorPathCtx, LocationMap, URI},
 };
 use murkdown::{compiler, parser};
 use murkdown::{preprocessor, types::AstMap};
@@ -189,8 +189,15 @@ pub async fn preprocess(
             let weak = Arc::downgrade(arc);
             artifacts.insert(uri, Artifact::AstPointer(weak));
 
+            let (uri_deps, exec_deps): (Vec<_>, Vec<_>) = deps
+                .into_iter()
+                .partition(|d| matches!(d, Dependency::URI(_)));
+
             // schedule dependent tasks
-            for uri in deps {
+            for uri in uri_deps {
+                let Dependency::URI(uri) = &uri else {
+                    unreachable!()
+                };
                 let (schema, uri_path) = uri.split_once(':').expect("uri to have schema");
 
                 if graph.get_uri(&uri).is_some() {

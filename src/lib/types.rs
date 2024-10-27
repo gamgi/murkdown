@@ -26,6 +26,12 @@ pub type LocationMap = HashMap<String, PathBuf>;
 #[derive(Debug, Clone)]
 pub struct Pointer(pub Weak<Mutex<Node>>);
 
+/// Dependency discovered by the preprocessor
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum Dependency {
+    URI(URI),
+}
+
 /// Pointer equality is ignored
 impl PartialEq for Pointer {
     fn eq(&self, _: &Pointer) -> bool {

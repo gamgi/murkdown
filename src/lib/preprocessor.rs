@@ -5,7 +5,7 @@ use crate::ast::{Node, NodeBuilder};
 use crate::compiler::lang::Lang;
 use crate::compiler::rule::Context;
 use crate::parser::Rule;
-use crate::types::{AstMap, LibError, LocationMap, Pointer, URI};
+use crate::types::{AstMap, Dependency, LibError, LocationMap, Pointer};
 
 static PREPROCESSABLE_PROPS: &[&str] = &["src", "ref"];
 
@@ -15,7 +15,7 @@ pub fn preprocess(
     asts: &mut AstMap,
     locs: &LocationMap,
     context: &str,
-) -> Result<HashSet<String>, LibError> {
+) -> Result<HashSet<Dependency>, LibError> {
     let mut deps = HashSet::new();
     let lang = Lang::new(include_str!("compiler/markdown.lang")).unwrap();
     let mut ctx = Context::default();
@@ -31,7 +31,7 @@ fn preprocess_recursive<'a>(
     asts: &mut AstMap,
     locs: &LocationMap,
     context: &str,
-    deps: &mut HashSet<URI>,
+    deps: &mut HashSet<Dependency>,
     lang: &'a Lang,
     base_path: &str,
 ) -> Result<(), LibError> {
@@ -91,7 +91,7 @@ fn preprocess_includes(
     asts: &mut AstMap,
     locs: &LocationMap,
     context: &str,
-    deps: &mut HashSet<URI>,
+    deps: &mut HashSet<Dependency>,
 ) {
     let props = node
         .props
@@ -99,6 +99,7 @@ fn preprocess_includes(
         .map_or(&[] as &[_], Vec::as_slice)
         .iter()
         .filter(|&(k, _)| PREPROCESSABLE_PROPS.contains(&&**k));
+
     for (key, uri_or_path) in props {
         let (schema, path) = match &**key {
             "src" => uri_or_path
@@ -112,7 +113,7 @@ fn preprocess_includes(
         let uri = format!("{schema}:{uri_path}");
 
         // add dependency
-        deps.insert(uri.clone());
+        deps.insert(Dependency::URI(uri.clone()));
 
         // add placeholder node to ast
         let arc = asts.entry(uri).or_insert_with(|| {
