@@ -31,12 +31,10 @@ pub async fn index(
             .into_iter()
             .filter_entry(is_visible)
             .filter_map(Result::ok)
-            .filter(is_file);
-        for entry in walker {
-            locations.insert(
-                entry.path().display().to_string(),
-                entry.path().to_path_buf(),
-            );
+            .filter(is_file)
+            .map(into_uri_path_tuple);
+        for (id, path) in walker {
+            locations.insert(id, path);
         }
     }
 
@@ -101,8 +99,12 @@ pub async fn load(op: Operation, artifacts: Arc<Mutex<ArtifactMap>>) -> Result<b
         Ok(contents) => Artifact::String(contents),
         Err(_) => Artifact::Binary(std::fs::read(path).with_ctx(path)?),
     };
+    let uri = op.uri();
+
+    // add artifact
     let mut artifacts = artifacts.lock().expect("poisoned lock");
-    artifacts.insert(op.uri(), artifact);
+    artifacts.insert(uri.clone(), artifact);
+
     Ok(false)
 }
 
@@ -151,10 +153,8 @@ pub async fn preprocess(
             let mut asts = asts.lock().expect("poisoned lock");
             let uri = op.uri();
 
-            let deps = {
-                let locs = locations.lock().expect("poisoned lock");
-                preprocessor::preprocess(&mut node, &mut asts, &locs, id)
-            };
+            let locs = locations.lock().expect("poisoned lock");
+            let deps = preprocessor::preprocess(&mut node, &mut asts, &locs, id);
 
             // upsert preprocessed node to ast
             let arc = match asts.entry(uri.to_string()) {
@@ -172,51 +172,39 @@ pub async fn preprocess(
 
             // schedule dependent tasks
             for uri in deps {
-                let (schema, path) = uri.split_once(':').expect("uri to have schema");
+                let (schema, uri_path) = uri.split_once(':').expect("uri to have schema");
 
                 if graph.get_uri(&uri).is_some() {
                     continue;
                 }
 
+                let id = Arc::from(uri_path);
+                let path = locs
+                    .get(uri_path)
+                    .ok_or(AppError::file_not_found(uri_path))?
+                    .clone();
+
                 match schema {
                     "file" => {
-                        graph.insert_node_chain([
-                            Operation::Load {
-                                id: path.into(),
-                                path: PathBuf::from(path),
-                            },
-                            op.clone(),
-                        ]);
+                        graph.insert_node_chain([Operation::Load { id, path }, op.clone()]);
                     }
                     "ast" => {
                         graph.insert_node_chain([
-                            Operation::Load {
-                                id: path.into(),
-                                path: PathBuf::from(path),
-                            },
-                            Operation::Parse { id: path.into() },
+                            Operation::Load { id: id.clone(), path },
+                            Operation::Parse { id },
                             op.clone(),
                         ]);
                     }
                     "parse" => {
                         graph.insert_node_chain([
-                            Operation::Load {
-                                id: path.into(),
-                                path: PathBuf::from(path),
-                            },
-                            Operation::Parse { id: path.into() },
-                            Operation::Preprocess { id: path.into() },
+                            Operation::Load { id: id.clone(), path },
+                            Operation::Parse { id: id.clone() },
+                            Operation::Preprocess { id },
                             op.clone(),
                         ]);
                     }
                     "copy" => {
-                        graph.insert_node_chain([
-                            Operation::Copy {
-                                id: path.into(),
-                                path: PathBuf::from(path),
-                            },
-                            Operation::Finish,
-                        ]);
+                        graph.insert_node_chain([Operation::Copy { id, path }, Operation::Finish]);
                     }
                     _ => return Err(AppError::unknown_schema(schema)),
                 }

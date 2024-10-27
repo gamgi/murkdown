@@ -20,8 +20,13 @@ pub fn is_file(entry: &DirEntry) -> bool {
 }
 
 pub fn into_uri_path_tuple(entry: DirEntry) -> (String, PathBuf) {
-    let id = entry.path().display().to_string();
-    (id, entry.path().to_path_buf())
+    let path = entry.path().to_path_buf();
+    let id = path
+        .strip_prefix("./")
+        .unwrap_or(&path)
+        .display()
+        .to_string();
+    (id, path)
 }
 
 pub fn parents<I>(paths: I) -> Result<HashSet<PathBuf>, AppError>

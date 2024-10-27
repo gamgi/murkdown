@@ -42,6 +42,7 @@ impl From<&Operation> for Op {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(Ord, PartialOrd, Eq, PartialEq))]
 pub enum Operation {
     Gather {
         cmd: Command,

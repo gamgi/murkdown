@@ -36,6 +36,8 @@ pub enum AppErrorKind {
     Exit(u8),
     #[error("could not parse command")]
     ClapError(#[from] ClapError),
+    #[error("file not found `{0}`")]
+    FileNotFound(String),
     #[error("internal channel error")]
     SendError,
     #[error("invalid path `{0}`")]

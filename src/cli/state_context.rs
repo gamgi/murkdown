@@ -1,3 +1,5 @@
+#[cfg(test)]
+use std::path::PathBuf;
 use std::{
     collections::{HashMap, HashSet},
     sync::{atomic::AtomicBool, Arc, Mutex},
@@ -35,16 +37,16 @@ impl State {
         }
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn insert_artifact(&self, uri: &str, art: Artifact) {
         let mut arts = self.artifacts.lock().expect("poisoned lock");
         arts.insert(uri.to_string(), art);
     }
 
-    #[allow(dead_code)]
-    pub fn insert_op(&self, op: Operation) -> OpId {
-        let mut ops = self.operations.lock().expect("poisoned lock");
-        ops.insert_node(op)
+    #[cfg(test)]
+    pub fn insert_location(&self, path: &str, location: impl Into<PathBuf>) {
+        let mut locs = self.locations.lock().expect("poisoned lock");
+        locs.insert(path.to_string(), location.into());
     }
 
     pub fn insert_op_chain<I>(&self, new_ops: I)

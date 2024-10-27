@@ -87,8 +87,9 @@ fn preprocess_includes(
             "ref" => uri_or_path.split_once(':').unwrap_or(("copy", uri_or_path)),
             _ => unreachable!(),
         };
-        let full_path = resolve_path(path, locs.keys(), context).unwrap_or(path);
-        let uri = format!("{schema}:{full_path}");
+        // NOTE: resolves URI path to canonical form
+        let uri_path = resolve_path(path, locs.keys(), context).unwrap_or(path);
+        let uri = format!("{schema}:{uri_path}");
 
         // add dependency
         deps.insert(uri.clone());

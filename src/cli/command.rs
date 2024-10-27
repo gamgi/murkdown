@@ -44,6 +44,7 @@ pub(crate) struct Config {
 }
 
 #[derive(Parser, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(test, derive(Ord, PartialOrd))]
 pub(crate) enum Command {
     /// Build a graph
     Graph {

@@ -1,7 +1,9 @@
+use std::path::PathBuf;
+
 use murkdown::ast::NodeBuilder;
 
 use crate::cli::command::GraphType;
-use crate::cli::task::{graph, preprocess};
+use crate::cli::task::{graph, index, preprocess};
 use crate::cli::{
     artifact::Artifact,
     op::{OpId, Operation},
@@ -9,7 +11,27 @@ use crate::cli::{
 };
 
 #[tokio::test]
-async fn test_preprocess_adds_src_ops() {
+async fn test_index_strips_relative_path_and_duplicates() {
+    let ctx = State::new();
+
+    index(
+        vec![
+            PathBuf::from("./src/cli/task/tests.rs"),
+            PathBuf::from("src/cli/task/tests.rs"),
+        ],
+        ctx.locations.clone(),
+    )
+    .await
+    .unwrap();
+
+    let locs = ctx.locations.lock().unwrap();
+    let result_keys = locs.keys().collect::<Vec<_>>();
+
+    assert_eq!(result_keys, [&"src/cli/task/tests.rs".to_string()]);
+}
+
+#[tokio::test]
+async fn test_preprocess_adds_src_operations() {
     let node = NodeBuilder::root()
         .children(vec![NodeBuilder::block(">")
             .add_prop(("src".into(), "bar".into()))
@@ -18,6 +40,7 @@ async fn test_preprocess_adds_src_ops() {
     let op = Operation::Preprocess { id: "foo".into() };
     let dep = op.uri();
     let ctx = State::new();
+    ctx.insert_location("bar", PathBuf::from("file.txt"));
     ctx.insert_artifact(&dep, Artifact::Ast(node));
 
     preprocess(
@@ -32,11 +55,11 @@ async fn test_preprocess_adds_src_ops() {
     .unwrap();
 
     let graph = ctx.operations.lock().unwrap();
-    let mut result = graph.iter().map(|(v, _, _)| v).collect::<Vec<_>>();
-    result.sort();
+    let mut result_keys = graph.iter().map(|(v, _, _)| v).collect::<Vec<_>>();
+    result_keys.sort();
 
     assert_eq!(
-        result,
+        result_keys,
         [
             &OpId::load("bar"),
             &OpId::parse("bar"),
@@ -44,10 +67,26 @@ async fn test_preprocess_adds_src_ops() {
             &OpId::preprocess("foo"),
         ]
     );
+
+    let mut result_ops = graph.iter().map(|(_, o, _)| o).collect::<Vec<_>>();
+    result_ops.sort();
+
+    assert_eq!(
+        result_ops,
+        [
+            &Operation::Load {
+                id: "bar".into(),
+                path: PathBuf::from("file.txt")
+            },
+            &Operation::Parse { id: "bar".into() },
+            &Operation::Preprocess { id: "bar".into() },
+            &Operation::Preprocess { id: "foo".into() }
+        ]
+    );
 }
 
 #[tokio::test]
-async fn test_preprocess_adds_ref_ops() {
+async fn test_preprocess_adds_ref_operations() {
     let node = NodeBuilder::root()
         .children(vec![NodeBuilder::block(">")
             .add_prop(("ref".into(), "bar".into()))
@@ -56,6 +95,7 @@ async fn test_preprocess_adds_ref_ops() {
     let op = Operation::Preprocess { id: "foo".into() };
     let dep = op.uri();
     let ctx = State::new();
+    ctx.insert_location("bar", PathBuf::from("file.txt"));
     ctx.insert_artifact(&dep, Artifact::Ast(node));
 
     preprocess(
@@ -70,10 +110,10 @@ async fn test_preprocess_adds_ref_ops() {
     .unwrap();
 
     let graph = ctx.operations.lock().unwrap();
-    let mut result = graph.iter().map(|(v, _, _)| v).collect::<Vec<_>>();
-    result.sort();
+    let mut result_keys = graph.iter().map(|(v, _, _)| v).collect::<Vec<_>>();
+    result_keys.sort();
 
-    assert_eq!(result, [&OpId::copy("bar"), &OpId::finish(),]);
+    assert_eq!(result_keys, [&OpId::copy("bar"), &OpId::finish()]);
 }
 
 #[tokio::test]
