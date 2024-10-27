@@ -1,7 +1,7 @@
 PREPROCESS RULES:
-
-[DUMMY]
+[...DATE...]
   EXEC "date" TO STRING AS "date"
+  PUSH src "exec:date"
 
 COMPILE RULES:
 /* root */

@@ -34,6 +34,14 @@ pub enum Output {
 pub enum AppErrorKind {
     #[error("could not parse command")]
     ClapError(#[from] ClapError),
+    #[error("execution of `{program}` failed: {source}")]
+    ExecutionFailed {
+        #[backtrace]
+        source: std::io::Error,
+        program: String,
+    },
+    #[error("invalid arguments for `{program}`: {args}")]
+    BadExecArgs { program: String, args: String },
     #[error("file not found `{0}`")]
     FileNotFound(String),
     #[error("internal channel error")]

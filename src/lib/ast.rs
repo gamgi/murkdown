@@ -40,6 +40,14 @@ impl Node {
             .unwrap()
     }
 
+    pub fn add_prop(&mut self, key: &str, value: Arc<str>) {
+        let entry = (Arc::from(key), value);
+        match self.props.as_mut() {
+            Some(props) => props.push(entry),
+            None => self.props = Some(vec![entry]),
+        };
+    }
+
     pub fn find_prop(&self, key: &str) -> Option<Arc<str>> {
         match self.props.as_ref() {
             Some(props) => props

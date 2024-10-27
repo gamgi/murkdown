@@ -65,6 +65,14 @@ impl Lang {
                         }
                     }
                 }
+                ("PUSH", [StackRef(target), Str(value)]) if target.as_str() == "src" => {
+                    let value = replace(value, ctx, &*node);
+                    ctx.stacks
+                        .entry(Arc::from(target.as_str()))
+                        .or_default()
+                        .push(value.clone());
+                    node.add_prop(target.as_str(), Arc::from(value));
+                }
                 ("PUSH", [StackRef(target), Str(value)]) => {
                     let value = replace(value, ctx, &*node);
                     ctx.stacks

@@ -12,6 +12,7 @@ use murkdown::{
 use murkdown::{compiler, parser};
 use murkdown::{preprocessor, types::AstMap};
 use tokio::fs;
+use tokio::process::Command as TokioCommand;
 use walkdir::{DirEntry, WalkDir};
 
 use super::{
@@ -89,6 +90,56 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
             }
         }
     }
+
+    Ok(false)
+}
+
+/// Execute a command
+pub async fn exec(
+    op: Operation,
+    asts: Arc<Mutex<AstMap>>,
+    artifacts: Arc<Mutex<ArtifactMap>>,
+) -> Result<bool, AppError> {
+    let Operation::Exec { cmd, .. } = &op else {
+        unreachable!()
+    };
+
+    let (program, args) = cmd.split_once(' ').unwrap_or((cmd, ""));
+    let args = shlex::split(args).ok_or(AppError::bad_exec_args(program, args))?;
+
+    let result = TokioCommand::new(program)
+        .args(args)
+        .output()
+        .await
+        .map_err(|e| AppError::execution_failed(e, program))?;
+
+    let artifact = match String::from_utf8(result.stdout.clone()) {
+        Ok(contents) => Artifact::String(contents),
+        Err(_) => Artifact::Binary(result.stdout),
+    };
+
+    let node = match &artifact {
+        Artifact::String(content) => NodeBuilder::root()
+            .add_section(content.split('\n').map(Node::new_line).collect())
+            .done(),
+        _ => todo!(),
+    };
+    let uri = op.uri();
+
+    // upsert node to ast
+    let mut asts = asts.lock().expect("poisoned lock");
+    match asts.entry(uri.clone()) {
+        Entry::Occupied(r) => {
+            let mut mutex = r.get().lock().expect("poisoned lock");
+            *mutex = node;
+            &r.get().clone()
+        }
+        Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(node))),
+    };
+
+    // add artifact
+    let mut artifacts = artifacts.lock().expect("poisoned lock");
+    artifacts.insert(uri, artifact);
 
     Ok(false)
 }
@@ -199,12 +250,17 @@ pub async fn preprocess(
                     unreachable!()
                 };
                 let (schema, uri_path) = uri.split_once(':').expect("uri to have schema");
+                let id = Arc::from(uri_path);
 
-                if graph.get_uri(&uri).is_some() {
+                if graph.get_uri(uri).is_some() {
                     continue;
                 }
 
-                let id = Arc::from(uri_path);
+                if schema == "exec" {
+                    graph.add_dependency(OpId::from(&op), OpId::exec(id));
+                    continue;
+                }
+
                 let path = locs
                     .get(uri_path)
                     .ok_or(AppError::file_not_found(uri_path))?

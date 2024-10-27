@@ -113,6 +113,10 @@ impl OpId {
         Self(Op::Gather, Arc::from("Gather"))
     }
 
+    pub fn exec(id: impl Into<Arc<str>>) -> Self {
+        Self(Op::Exec, id.into())
+    }
+
     pub fn load(id: impl Into<Arc<str>>) -> Self {
         Self(Op::Load, id.into())
     }

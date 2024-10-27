@@ -225,7 +225,7 @@ mod tests {
         let mut asts = AstMap::default();
         let mut node = NodeBuilder::root()
             .add_section(vec![NodeBuilder::block(">")
-                .headers(Some(vec![Arc::from("DUMMY")]))
+                .headers(Some(vec![Arc::from("DATE")]))
                 .done()])
             .done();
         let mut locs = LocationMap::default();
@@ -234,12 +234,20 @@ mod tests {
 
         assert_eq!(
             deps,
-            HashSet::from([Dependency::Exec {
-                cmd: "date".to_string(),
-                artifact: None,
-                name: "date".into()
-            }])
+            HashSet::from([
+                Dependency::URI("exec:date".to_string()),
+                Dependency::Exec {
+                    cmd: "date".to_string(),
+                    artifact: None,
+                    name: "date".into()
+                }
+            ])
         );
+
+        let section = node.children.as_ref().unwrap().first().unwrap();
+        let block = section.children.as_ref().unwrap().first().unwrap();
+
+        assert_eq!(block.props, Some(vec![("src".into(), "exec:date".into())]));
     }
 }
 
