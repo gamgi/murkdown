@@ -5,7 +5,7 @@ use std::{
 
 use walkdir::DirEntry;
 
-use super::types::{AppError, AppErrorKind};
+use super::types::AppError;
 
 pub fn is_visible(entry: &DirEntry) -> bool {
     entry
@@ -40,13 +40,6 @@ where
             None => Err(AppError::bad_path(p)),
         })
         .collect()
-}
-
-pub fn handle_exit(err: AppError) -> Result<(), AppError> {
-    match err.inner() {
-        AppErrorKind::Exit(0) => Ok(()),
-        _ => Err(err),
-    }
 }
 
 #[cfg(test)]

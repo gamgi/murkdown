@@ -11,7 +11,6 @@ use super::graph_sorter::grouped_topological_sort;
 use super::op::{OpId, Operation};
 use super::state_context::State;
 use super::task;
-use super::types::AppErrorKind;
 use super::utils::parents;
 use super::{
     command::Config,
@@ -119,14 +118,10 @@ fn process_result(
 }
 
 fn process_error(error: AppError, config: &Config) -> Result<(), AppError> {
-    if let AppErrorKind::Exit(_) = error.inner() {
-        Err(error)
-    } else {
-        error!("{}", error);
-        match config.interactive {
-            true => Ok(()),
-            false => Err(error),
-        }
+    error!("{}", error);
+    match config.interactive {
+        true => Ok(()),
+        false => Err(error),
     }
 }
 

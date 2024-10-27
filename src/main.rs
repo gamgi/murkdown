@@ -6,7 +6,6 @@ use cli::{
     logger::setup_logging,
     state,
     types::{AppError, Event},
-    utils::handle_exit,
 };
 use tokio::{sync, try_join};
 
@@ -18,7 +17,6 @@ async fn main() -> Result<(), AppError> {
 
     let handle_state = state::handle(rx, &config);
     let handle_commands = command::handle(tx, &config);
-    let run = try_join!(handle_state, handle_commands).and(Ok(()));
 
-    run.or_else(handle_exit)
+    try_join!(handle_state, handle_commands).and(Ok(()))
 }
