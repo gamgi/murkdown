@@ -2,20 +2,24 @@ pub(crate) mod lang;
 pub(crate) mod rule;
 pub(crate) mod rule_argument;
 
+use std::collections::HashSet;
+
 use lang::Lang;
 use rule::Context;
 pub(crate) use rule::Rule;
 
 use crate::ast::Node;
 use crate::parser;
-use crate::types::{LibError, Pointer};
+use crate::types::{Dependency, LibError, Pointer};
 
 /// Compile AST to string
 pub fn compile(node: &mut Node) -> Result<String, LibError> {
     let lang = Lang::new(include_str!("compiler/markdown.lang"))?;
+    let mut ignored_deps = HashSet::new();
     compile_recusive(
         std::slice::from_mut(&mut *node),
         &mut Context::default(),
+        &mut ignored_deps,
         &lang,
         "",
     )
@@ -24,6 +28,7 @@ pub fn compile(node: &mut Node) -> Result<String, LibError> {
 fn compile_recusive<'a, 'c>(
     nodes: &'c mut [Node],
     ctx: &mut Context<'a>,
+    deps: &mut HashSet<Dependency>,
     lang: &'a Lang,
     base_path: &str,
 ) -> Result<String, LibError> {
@@ -36,21 +41,21 @@ fn compile_recusive<'a, 'c>(
         let mut instructions = lang.get_instructions("COMPILE", &path);
 
         // Evaluate pre-yield
-        let value = lang.evaluate(&mut instructions, &mut *ctx, node)?;
+        let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node)?;
         out.push_str(&value);
 
         if let Some(Pointer(weak)) = &node.pointer {
             let mutex = weak.upgrade().unwrap();
             let mut node = mutex.lock().unwrap();
             if let Some(children) = node.children.as_mut() {
-                out.push_str(&compile_recusive(children, ctx, lang, &path)?);
+                out.push_str(&compile_recusive(children, ctx, deps, lang, &path)?);
             }
         } else if let Some(children) = node.children.as_mut() {
-            out.push_str(&compile_recusive(children, ctx, lang, &path)?);
+            out.push_str(&compile_recusive(children, ctx, deps, lang, &path)?);
         }
 
         // Evaluate post-yield
-        let value = lang.evaluate(&mut instructions, &mut *ctx, node)?;
+        let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node)?;
         out.push_str(&value);
 
         if nodes.peek().is_some() || node.rule == parser::Rule::Root {

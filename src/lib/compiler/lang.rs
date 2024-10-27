@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use super::{
     rule::{self, Context, LangInstr},
@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     ast::Node,
-    types::{LangMap, LibError},
+    types::{Dependency, LangMap, LibError},
 };
 
 pub struct Lang {
@@ -39,12 +39,20 @@ impl Lang {
         &self,
         instructions: &'b mut impl Iterator<Item = &'a LangInstr>,
         ctx: &'b mut Context<'a>,
+        deps: &mut HashSet<Dependency>,
         node: &'c mut Node,
     ) -> Result<String, LibError> {
         let mut out = String::new();
         for inst in instructions {
             use Arg::*;
             match (inst.op.as_str(), inst.args.as_slice()) {
+                ("EXEC", [Str(cmd), Memory, URIPath(uri)]) => {
+                    deps.insert(Dependency::Exec {
+                        cmd: cmd.to_string(),
+                        artifact: None,
+                        name: uri.to_string(),
+                    });
+                }
                 ("POP", [StackRef(stack)]) => {
                     if let Some(stack) = ctx.stacks.get_mut(stack.as_str()) {
                         stack.pop();
@@ -158,6 +166,7 @@ mod tests {
               WRITE "ok"
             "#
         };
+        let mut deps = HashSet::new();
         let lang = Lang::new(input).unwrap();
         let mut node = Node::default();
 
@@ -165,7 +174,7 @@ mod tests {
         let mut ctx = Context::default();
 
         let value = lang
-            .evaluate(&mut instructions, &mut ctx, &mut node)
+            .evaluate(&mut instructions, &mut ctx, &mut deps, &mut node)
             .unwrap();
         assert_eq!(ctx.stacks.get("indent").unwrap(), &["hello", "world"]);
         assert_eq!(value, "ok");
@@ -182,6 +191,7 @@ mod tests {
               WRITE "$word"
             "#
         };
+        let mut deps = HashSet::new();
         let lang = Lang::new(input).unwrap();
         let mut node = NodeBuilder::root()
             .add_prop(("word".into(), "hello".into()))
@@ -192,7 +202,7 @@ mod tests {
         let mut ctx = Context::default();
 
         let value = lang
-            .evaluate(&mut instructions, &mut ctx, &mut node)
+            .evaluate(&mut instructions, &mut ctx, &mut deps, &mut node)
             .unwrap();
         assert_eq!(value, "hello world");
     }

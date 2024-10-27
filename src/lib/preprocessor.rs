@@ -39,7 +39,7 @@ fn preprocess_recursive<'a>(
     let mut instructions = lang.get_instructions("PREPROCESS", &path);
 
     // Evaluate pre-yield
-    lang.evaluate(&mut instructions, &mut *ctx, node)?;
+    lang.evaluate(&mut instructions, ctx, deps, node)?;
 
     if let Some(children) = node.children.as_mut() {
         for child in children.iter_mut() {
@@ -48,7 +48,7 @@ fn preprocess_recursive<'a>(
     }
 
     // Evaluate post-yield
-    lang.evaluate(&mut instructions, &mut *ctx, node)?;
+    lang.evaluate(&mut instructions, &mut *ctx, deps, node)?;
 
     match node.rule {
         Rule::Root => {
@@ -218,6 +218,28 @@ mod tests {
 
         let ast_keys = asts.keys().collect::<Vec<_>>();
         assert_eq!(ast_keys, vec!["parse:bar"]);
+    }
+
+    #[test]
+    fn test_preprocess_runs_precompile() {
+        let mut asts = AstMap::default();
+        let mut node = NodeBuilder::root()
+            .add_section(vec![NodeBuilder::block(">")
+                .headers(Some(vec![Arc::from("DUMMY")]))
+                .done()])
+            .done();
+        let mut locs = LocationMap::default();
+
+        let deps = preprocess(&mut node, &mut asts, &mut locs, "").unwrap();
+
+        assert_eq!(
+            deps,
+            HashSet::from([Dependency::Exec {
+                cmd: "date".to_string(),
+                artifact: None,
+                name: "date".into()
+            }])
+        );
     }
 }
 

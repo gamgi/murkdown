@@ -8,21 +8,23 @@ use crate::types::LibError;
 /// Argument
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Arg {
-    Str(String),
+    Memory,
     Int(i64),
-    StackRef(String),
+    URIPath(String),
     PropRef(String),
-    Name(String),
+    Str(String),
+    StackRef(String),
 }
 
 impl Display for Arg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Arg::Str(v) => write!(f, "\"{}\"", v),
+            Arg::Memory => write!(f, "TO STRING"),
             Arg::Int(v) => write!(f, "{}", v),
-            Arg::StackRef(v) => write!(f, "{}", v),
+            Arg::URIPath(v) => write!(f, "AS \"{}\"", v),
             Arg::PropRef(v) => write!(f, "PROP {}", v),
-            Arg::Name(v) => write!(f, "AS \"{}\"", v),
+            Arg::Str(v) => write!(f, "\"{}\"", v),
+            Arg::StackRef(v) => write!(f, "{}", v),
         }
     }
 }
@@ -38,7 +40,8 @@ impl TryFrom<Pair<'_, Rule>> for Arg {
             })?)),
             Rule::StackRef => Ok(Arg::StackRef(pair.as_str().to_string())),
             Rule::PropRef => Ok(Arg::PropRef(pair.as_str().to_string())),
-            Rule::Name => Ok(Arg::Name(pair.as_str().to_string())),
+            Rule::URIPath => Ok(Arg::URIPath(pair.as_str().to_string())),
+            Rule::Memory => Ok(Arg::Memory),
             _ => return Err(LibError::invalid_rule_argument(pair.as_str())),
         }
     }
@@ -47,7 +50,8 @@ impl TryFrom<Pair<'_, Rule>> for Arg {
 impl PartialEq<&str> for Arg {
     fn eq(&self, other: &&str) -> bool {
         match self {
-            Arg::Str(s) | Arg::StackRef(s) | Arg::PropRef(s) | Arg::Name(s) => s == *other,
+            Arg::URIPath(s) | Arg::Str(s) | Arg::PropRef(s) | Arg::StackRef(s) => s == *other,
+            Arg::Memory => false,
             Arg::Int(s) => s.to_string() == *other,
         }
     }

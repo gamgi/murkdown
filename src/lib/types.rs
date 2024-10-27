@@ -26,10 +26,15 @@ pub type LocationMap = HashMap<String, PathBuf>;
 #[derive(Debug, Clone)]
 pub struct Pointer(pub Weak<Mutex<Node>>);
 
-/// Dependency discovered by the preprocessor
+/// Dependency discovered by the preprocessor or compiler
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Dependency {
     URI(URI),
+    Exec {
+        cmd: String,
+        artifact: Option<PathBuf>,
+        name: String,
+    },
 }
 
 /// Pointer equality is ignored

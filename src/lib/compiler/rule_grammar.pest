@@ -13,15 +13,14 @@ Command     = { Op ~ (" "+ ~ Args)? }
 Settings    = { "IS " ~ ANY_LETTER+ }
 Op          = { KEYWORD }
 Args        =_{ Arg ~ (" "+ ~ Arg)* }
-Arg         =_{ "\"" ~ Str ~ "\""  | Artifact | Ident | Prop | Int | StackRef }
-
-Artifact    =_{ "TO " ~ (Memory | "\"" ~ File ~ "\"") }
-Ident       =_{ "AS " ~ "\"" ~ Name ~ "\"" }
+Arg         =_{ "\"" ~ Str ~ "\""  | ArtifactDest | ArtifactPath | Prop | Int | StackRef }
+ArtifactDest=_{ "TO " ~ (Memory | "\"" ~ File ~ "\"") }
+ArtifactPath=_{ "AS " ~ "\"" ~ URIPath ~ "\"" }
 Prop        =_{ "PROP " ~ PropRef }
 
 Memory      =@{ "STRING" }
 File        =@{ Str }
-Name        =@{ Str }
+URIPath     =@{ Str }
 PropRef     =@{ StackRef }
 Str         = { (!(NEWLINE | "\"") ~ ("\\\"" | ANY_LETTER))+ }
 Int         = { ASCII_DIGIT+ }
