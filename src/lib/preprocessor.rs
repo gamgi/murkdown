@@ -2,8 +2,10 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::ast::{Node, NodeBuilder};
+use crate::compiler::lang::Lang;
+use crate::compiler::rule::Context;
 use crate::parser::Rule;
-use crate::types::{AstMap, LocationMap, Pointer, URI};
+use crate::types::{AstMap, LibError, LocationMap, Pointer, URI};
 
 static PREPROCESSABLE_PROPS: &[&str] = &["src", "ref"];
 
@@ -13,24 +15,41 @@ pub fn preprocess(
     asts: &mut AstMap,
     locs: &LocationMap,
     context: &str,
-) -> HashSet<String> {
+) -> Result<HashSet<String>, LibError> {
     let mut deps = HashSet::new();
-    preprocess_recursive(node, asts, locs, context, &mut deps);
-    deps
+    let lang = Lang::new(include_str!("compiler/markdown.lang")).unwrap();
+    let mut ctx = Context::default();
+
+    preprocess_recursive(node, &mut ctx, asts, locs, context, &mut deps, &lang, "")?;
+    Ok(deps)
 }
 
-fn preprocess_recursive(
+#[allow(clippy::too_many_arguments)]
+fn preprocess_recursive<'a>(
     node: &mut Node,
+    ctx: &mut Context<'a>,
     asts: &mut AstMap,
     locs: &LocationMap,
     context: &str,
     deps: &mut HashSet<URI>,
-) {
+    lang: &'a Lang,
+    base_path: &str,
+) -> Result<(), LibError> {
+    let path = node.build_path(base_path);
+    let mut instructions = lang.get_instructions("PREPROCESS", &path);
+
+    // Evaluate pre-yield
+    lang.evaluate(&mut instructions, &mut *ctx, node)?;
+
     if let Some(children) = node.children.as_mut() {
         for child in children.iter_mut() {
-            preprocess_recursive(child, asts, locs, context, deps);
+            preprocess_recursive(child, ctx, asts, locs, context, deps, lang, &path)?;
         }
     }
+
+    // Evaluate post-yield
+    lang.evaluate(&mut instructions, &mut *ctx, node)?;
+
     match node.rule {
         Rule::Root => {
             preprocess_headers(node);
@@ -42,6 +61,7 @@ fn preprocess_recursive(
         }
         _ => {}
     }
+    Ok(())
 }
 
 /// Adds implicit headers to nodes
@@ -175,7 +195,7 @@ mod tests {
             .done();
         let mut locs = LocationMap::default();
         locs.insert("bar".to_string(), PathBuf::from("something.txt"));
-        preprocess(&mut node, &mut asts, &mut locs, "");
+        preprocess(&mut node, &mut asts, &mut locs, "").unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
@@ -193,7 +213,7 @@ mod tests {
         let mut locs = LocationMap::default();
         locs.insert("bar".to_string(), PathBuf::from("something.txt"));
 
-        preprocess(&mut node, &mut asts, &mut locs, "");
+        preprocess(&mut node, &mut asts, &mut locs, "").unwrap();
 
         let ast_keys = asts.keys().collect::<Vec<_>>();
         assert_eq!(ast_keys, vec!["parse:bar"]);

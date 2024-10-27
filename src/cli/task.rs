@@ -173,7 +173,7 @@ pub async fn preprocess(
             let uri = op.uri();
 
             let locs = locations.lock().expect("poisoned lock");
-            let deps = preprocessor::preprocess(&mut node, &mut asts, &locs, id);
+            let deps = preprocessor::preprocess(&mut node, &mut asts, &locs, id)?;
 
             // upsert preprocessed node to ast
             let arc = match asts.entry(uri.to_string()) {
