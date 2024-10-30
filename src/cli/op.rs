@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
-use murkdown::types::URI;
+use murkdown::types::{ExecArtifact, URI};
 
 use super::command::{Command, GraphType};
 use super::types::AppError;
@@ -55,6 +55,8 @@ pub enum Operation {
     Exec {
         id: Id,
         cmd: String,
+        input: Option<String>,
+        artifact: ExecArtifact,
     },
     Load {
         id: Id,

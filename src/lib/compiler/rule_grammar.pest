@@ -14,13 +14,13 @@ Settings    = { "IS " ~ ANY_LETTER+ }
 Op          = { KEYWORD }
 Args        =_{ Arg ~ (" "+ ~ Arg)* }
 Arg         =_{ "\"" ~ Str ~ "\""  | ArtifactDest | ArtifactPath | Prop | Int | StackRef }
-ArtifactDest=_{ "TO " ~ (Memory | "\"" ~ File ~ "\"") }
+ArtifactDest=_{ "TO " ~ (MediaType | "\"" ~ File ~ "\"") }
 ArtifactPath=_{ "AS " ~ "\"" ~ URIPath ~ "\"" }
 Prop        =_{ "PROP " ~ PropRef }
 
-Memory      =@{ "STRING" }
+MediaType   =@{ ASCII_ALPHA+ ~ "/" ~ ASCII_ALPHA+ ~ (";" ~ ASCII_ALPHA+ ~ "=" ~ ASCII_ALPHANUMERIC+)? }
 File        =@{ Str }
-URIPath     =@{ Str }
+URIPath     = { Str }
 PropRef     =@{ StackRef }
 Str         = { (!(NEWLINE | "\"") ~ ("\\\"" | ANY_LETTER))+ }
 Int         = { ASCII_DIGIT+ }

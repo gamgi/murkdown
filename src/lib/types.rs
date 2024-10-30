@@ -32,9 +32,16 @@ pub enum Dependency {
     URI(URI),
     Exec {
         cmd: String,
-        artifact: Option<PathBuf>,
+        input: Option<String>,
         name: String,
+        artifact: ExecArtifact,
     },
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone)]
+pub enum ExecArtifact {
+    Stdout(String),
+    Path(PathBuf),
 }
 
 /// Pointer equality is ignored

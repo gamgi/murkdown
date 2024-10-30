@@ -1,6 +1,6 @@
 PREPROCESS RULES:
-[...DATE...]
-  EXEC "date" TO STRING AS "date"
+[...DATE...]$
+  EXEC "date" TO text/plain AS "date"
   PUSH src "exec:date"
 
 COMPILE RULES:

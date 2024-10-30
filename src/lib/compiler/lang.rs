@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{
     ast::Node,
-    types::{Dependency, LangMap, LibError},
+    types::{Dependency, ExecArtifact, LangMap, LibError},
 };
 
 pub struct Lang {
@@ -46,12 +46,22 @@ impl Lang {
         for inst in instructions {
             use Arg::*;
             match (inst.op.as_str(), inst.args.as_slice()) {
-                ("EXEC", [Str(cmd), Memory, URIPath(uri)]) => {
-                    deps.insert(Dependency::Exec {
-                        cmd: cmd.to_string(),
-                        artifact: None,
-                        name: uri.to_string(),
+                ("EXEC", [Str(cmd), destination @ (MediaType(_) | File(_)), URIPath(name)]) => {
+                    let cmd = replace(cmd, ctx, &*node).to_string();
+                    let name = replace(name, ctx, &*node).to_string();
+                    let artifact = match destination {
+                        MediaType(t) => ExecArtifact::Stdout(replace(t, ctx, &*node).to_string()),
+                        File(p) => ExecArtifact::Path(replace(p, ctx, &*node).as_ref().into()),
+                        _ => unreachable!(),
+                    };
+                    let input = node.children.as_ref().map(|children| {
+                        children
+                            .iter()
+                            .filter_map(|n| n.value.clone())
+                            .collect::<Vec<Arc<str>>>()
+                            .join("\n")
                     });
+                    deps.insert(Dependency::Exec { cmd, input, name, artifact });
                 }
                 ("POP", [StackRef(stack)]) => {
                     if let Some(stack) = ctx.stacks.get_mut(stack.as_str()) {

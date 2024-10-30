@@ -7,12 +7,11 @@ use std::{
 
 use murkdown::{
     ast::{Node, NodeBuilder},
-    types::{Dependency, LibErrorPathCtx, LocationMap, URI},
+    types::{Dependency, ExecArtifact, LibErrorPathCtx, LocationMap, URI},
 };
 use murkdown::{compiler, parser};
 use murkdown::{preprocessor, types::AstMap};
 use tokio::fs;
-use tokio::process::Command as TokioCommand;
 use walkdir::{DirEntry, WalkDir};
 
 use super::{
@@ -22,7 +21,11 @@ use super::{
     utils::{is_file, is_visible},
 };
 use crate::cli::command::GraphType;
-use crate::cli::{artifact::Artifact, command::Command, utils::into_uri_path_tuple};
+use crate::cli::{
+    artifact::Artifact,
+    command::Command,
+    utils::{into_uri_path_tuple, spawn_command, wait_command, write_command},
+};
 
 /// Index the contents of provided paths
 pub async fn index(
@@ -100,46 +103,82 @@ pub async fn exec(
     asts: Arc<Mutex<AstMap>>,
     artifacts: Arc<Mutex<ArtifactMap>>,
 ) -> Result<bool, AppError> {
-    let Operation::Exec { cmd, .. } = &op else {
+    let uri = op.uri();
+    let Operation::Exec { ref cmd, ref input, artifact, .. } = op else {
         unreachable!()
     };
 
     let (program, args) = cmd.split_once(' ').unwrap_or((cmd, ""));
-    let args = shlex::split(args).ok_or(AppError::bad_exec_args(program, args))?;
 
-    let result = TokioCommand::new(program)
-        .args(args)
-        .output()
-        .await
-        .map_err(|e| AppError::execution_failed(e, program))?;
+    let mut child = spawn_command(program, args)?;
+    write_command(&mut child, input.as_deref(), program).await?;
+    let result = wait_command(child, program).await?;
 
-    let artifact = match String::from_utf8(result.stdout.clone()) {
-        Ok(contents) => Artifact::String(contents),
-        Err(_) => Artifact::Binary(result.stdout),
+    let stdout_artifact = match String::from_utf8(result.stdout) {
+        Ok(v) => Artifact::Plaintext("text/plain".to_string(), v),
+        Err(v) => Artifact::Binary("application/octet-stream".to_string(), v.into_bytes()),
+    };
+    let stderr_artifact = match String::from_utf8(result.stderr) {
+        Ok(v) => Artifact::Plaintext("text/plain".to_string(), v),
+        Err(v) => Artifact::Binary("application/octet-stream".to_string(), v.into_bytes()),
     };
 
-    let node = match &artifact {
-        Artifact::String(content) => NodeBuilder::root()
-            .add_section(content.split('\n').map(Node::new_line).collect())
-            .done(),
-        _ => todo!(),
+    let main_artifact = match artifact {
+        ExecArtifact::Stdout(_) => stdout_artifact.clone(),
+        ExecArtifact::Path(path) => Artifact::Path(path.clone()),
     };
-    let uri = op.uri();
 
-    // upsert node to ast
+    // upsert nodes to ast
     let mut asts = asts.lock().expect("poisoned lock");
-    match asts.entry(uri.clone()) {
-        Entry::Occupied(r) => {
-            let mut mutex = r.get().lock().expect("poisoned lock");
-            *mutex = node;
-            &r.get().clone()
-        }
-        Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(node))),
-    };
+
+    if let Artifact::Plaintext(_, content) = &main_artifact {
+        let node = NodeBuilder::root()
+            .add_section(content.split('\n').map(Node::new_line).collect())
+            .done();
+
+        match asts.entry(uri.clone()) {
+            Entry::Occupied(r) => {
+                let mut mutex = r.get().lock().expect("poisoned lock");
+                *mutex = node;
+                &r.get().clone()
+            }
+            Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(node))),
+        };
+    }
+
+    if let Artifact::Plaintext(_, content) = &stdout_artifact {
+        let node = NodeBuilder::root()
+            .add_section(content.split('\n').map(Node::new_line).collect())
+            .done();
+
+        match asts.entry(uri.replacen("exec:", "exec:stdout:", 1)) {
+            Entry::Occupied(r) => {
+                let mut mutex = r.get().lock().expect("poisoned lock");
+                *mutex = node;
+                &r.get().clone()
+            }
+            Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(node))),
+        };
+    }
+
+    if let Artifact::Plaintext(_, content) = &stderr_artifact {
+        let node = NodeBuilder::root()
+            .add_section(content.split('\n').map(Node::new_line).collect())
+            .done();
+
+        match asts.entry(uri.replacen("exec:", "exec:stderr:", 1)) {
+            Entry::Occupied(r) => {
+                let mut mutex = r.get().lock().expect("poisoned lock");
+                *mutex = node;
+                &r.get().clone()
+            }
+            Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(node))),
+        };
+    }
 
     // add artifact
     let mut artifacts = artifacts.lock().expect("poisoned lock");
-    artifacts.insert(uri, artifact);
+    artifacts.insert(uri, main_artifact);
 
     Ok(false)
 }
@@ -150,20 +189,23 @@ pub async fn load(
     asts: Arc<Mutex<AstMap>>,
     artifacts: Arc<Mutex<ArtifactMap>>,
 ) -> Result<bool, AppError> {
+    let uri = op.uri();
     let Operation::Load { path, .. } = &op else {
         unreachable!()
     };
     let artifact = match tokio::fs::read_to_string(path).await {
-        Ok(contents) => Artifact::String(contents),
-        Err(_) => Artifact::Binary(std::fs::read(path).with_ctx(path)?),
+        Ok(contents) => Artifact::Plaintext("text/plain".to_string(), contents),
+        Err(_) => Artifact::Binary(
+            "application/octet-stream".to_string(),
+            std::fs::read(path).with_ctx(path)?,
+        ),
     };
-    let uri = op.uri();
 
     // add node to ast
     let mut asts = asts.lock().expect("poisoned lock");
     asts.entry(uri.clone()).or_insert_with(|| {
         let node = match &artifact {
-            Artifact::String(content) => NodeBuilder::root()
+            Artifact::Plaintext(_, content) => NodeBuilder::root()
                 .add_section(content.split('\n').map(Node::new_line).collect())
                 .done(),
             _ => todo!(),
@@ -191,7 +233,7 @@ pub async fn parse(
     let content = artifacts.get(&dep).expect("no parse dependency");
 
     match content {
-        Artifact::String(content) => {
+        Artifact::Plaintext(_, content) => {
             let ast = parser::parse(content).with_path(id)?;
             artifacts.insert(op.uri(), Artifact::Ast(ast));
         }
@@ -293,10 +335,14 @@ pub async fn preprocess(
             }
 
             for dep in exec_deps {
-                let Dependency::Exec { cmd, name, .. } = dep else {
+                let Dependency::Exec { cmd, name, input, artifact, .. } = dep else {
                     unreachable!()
                 };
-                graph.insert_node_chain([Operation::Exec { id: name.into(), cmd }, op.clone()]);
+                let id: Arc<str> = name.into();
+                graph.insert_node_chain([
+                    Operation::Exec { id: id.clone(), cmd, input, artifact },
+                    op.clone(),
+                ]);
             }
         }
         _ => panic!("preprocessing unknown artifact"),
@@ -326,7 +372,10 @@ pub async fn compile(
         }
         _ => panic!("compiling unknown artifact"),
     };
-    artifacts.insert(op.uri(), Artifact::String(result));
+    artifacts.insert(
+        op.uri(),
+        Artifact::Plaintext("text/markdown".to_string(), result),
+    );
 
     Ok(false)
 }
@@ -346,7 +395,7 @@ pub async fn write(
         let artifacts = artifacts.lock().expect("poisoned lock");
         let result = artifacts.get(&dep).expect("no write dependency");
         match result {
-            Artifact::String(content) => content.clone(),
+            Artifact::Plaintext(_, content) => content.clone(),
             _ => panic!("writing unknown artifact"),
         }
     };

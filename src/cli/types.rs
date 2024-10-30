@@ -34,8 +34,10 @@ pub enum Output {
 pub enum AppErrorKind {
     #[error("could not parse command")]
     ClapError(#[from] ClapError),
+    #[error("execution of `{program}` failed: {reason}")]
+    ExecutionFailed { reason: String, program: String },
     #[error("execution of `{program}` failed: {source}")]
-    ExecutionFailed {
+    ExecutionIoFailed {
         #[backtrace]
         source: std::io::Error,
         program: String,

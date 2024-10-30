@@ -10,8 +10,8 @@ use murkdown::ast::Node;
 #[allow(dead_code)]
 pub enum Artifact {
     Path(PathBuf),
-    String(String),
-    Binary(Vec<u8>),
+    Plaintext(String, String),
+    Binary(String, Vec<u8>),
     Ast(Node),
     AstPointer(Weak<Mutex<Node>>),
 }

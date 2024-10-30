@@ -184,7 +184,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::ast::NodeBuilder;
+    use crate::{ast::NodeBuilder, types::ExecArtifact};
 
     #[test]
     fn test_preprocess_adds_pointer() {
@@ -238,8 +238,9 @@ mod tests {
                 Dependency::URI("exec:date".to_string()),
                 Dependency::Exec {
                     cmd: "date".to_string(),
-                    artifact: None,
-                    name: "date".into()
+                    input: None,
+                    artifact: ExecArtifact::Stdout("text/plain".to_string()),
+                    name: "date".into(),
                 }
             ])
         );

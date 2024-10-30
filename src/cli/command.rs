@@ -79,7 +79,8 @@ pub(crate) enum Command {
     Exit,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, ValueEnum)]
+#[cfg_attr(test, derive(Ord, PartialOrd))]
 pub(crate) enum GraphType {
     /// Dependency graph
     Dependencies,

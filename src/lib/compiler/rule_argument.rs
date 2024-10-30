@@ -8,8 +8,9 @@ use crate::types::LibError;
 /// Argument
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Arg {
-    Memory,
+    MediaType(String),
     Int(i64),
+    File(String),
     URIPath(String),
     PropRef(String),
     Str(String),
@@ -19,8 +20,9 @@ pub enum Arg {
 impl Display for Arg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Arg::Memory => write!(f, "TO STRING"),
+            Arg::MediaType(v) => write!(f, "TO {}", v),
             Arg::Int(v) => write!(f, "{}", v),
+            Arg::File(v) => write!(f, "TO  \"{}\"", v),
             Arg::URIPath(v) => write!(f, "AS \"{}\"", v),
             Arg::PropRef(v) => write!(f, "PROP {}", v),
             Arg::Str(v) => write!(f, "\"{}\"", v),
@@ -40,8 +42,9 @@ impl TryFrom<Pair<'_, Rule>> for Arg {
             })?)),
             Rule::StackRef => Ok(Arg::StackRef(pair.as_str().to_string())),
             Rule::PropRef => Ok(Arg::PropRef(pair.as_str().to_string())),
+            Rule::File => Ok(Arg::File(pair.as_str().to_string())),
             Rule::URIPath => Ok(Arg::URIPath(pair.as_str().to_string())),
-            Rule::Memory => Ok(Arg::Memory),
+            Rule::MediaType => Ok(Arg::MediaType(pair.as_str().to_string())),
             _ => return Err(LibError::invalid_rule_argument(pair.as_str())),
         }
     }
@@ -50,8 +53,12 @@ impl TryFrom<Pair<'_, Rule>> for Arg {
 impl PartialEq<&str> for Arg {
     fn eq(&self, other: &&str) -> bool {
         match self {
-            Arg::URIPath(s) | Arg::Str(s) | Arg::PropRef(s) | Arg::StackRef(s) => s == *other,
-            Arg::Memory => false,
+            Arg::File(s)
+            | Arg::URIPath(s)
+            | Arg::MediaType(s)
+            | Arg::Str(s)
+            | Arg::PropRef(s)
+            | Arg::StackRef(s) => s == *other,
             Arg::Int(s) => s.to_string() == *other,
         }
     }
