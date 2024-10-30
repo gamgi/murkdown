@@ -25,8 +25,8 @@ pub fn compile(node: &mut Node) -> Result<String, LibError> {
     )
 }
 
-fn compile_recusive<'a, 'c>(
-    nodes: &'c mut [Node],
+fn compile_recusive<'a>(
+    nodes: &mut [Node],
     ctx: &mut Context<'a>,
     deps: &mut HashSet<Dependency>,
     lang: &'a Lang,
