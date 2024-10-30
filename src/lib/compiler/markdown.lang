@@ -3,6 +3,13 @@ PREPROCESS RULES:
   EXEC "date" TO text/plain AS "date"
   PUSH src "exec:date"
 
+[...UML...]$
+  PUSH ref "exec:plantuml.png"
+
+[...UML...] [SEC]$
+  SET stdin "\v"
+  EXEC "plantuml -pipe -tpng" TO image/png AS "plantuml.png"
+
 COMPILE RULES:
 /* root */
 ^[...]$

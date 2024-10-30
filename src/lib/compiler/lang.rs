@@ -46,9 +46,9 @@ impl Lang {
         for inst in instructions {
             use Arg::*;
             match (inst.op.as_str(), inst.args.as_slice()) {
-                ("EXEC", [Str(cmd), destination @ (MediaType(_) | File(_)), URIPath(name)]) => {
+                ("EXEC", [Str(cmd), destination @ (MediaType(_) | File(_)), URIPath(id)]) => {
                     let cmd = replace(cmd, ctx, &*node).to_string();
-                    let name = replace(name, ctx, &*node).to_string();
+                    let id = replace(id, ctx, &*node).to_string();
                     let artifact = match destination {
                         MediaType(t) => ExecArtifact::Stdout(replace(t, ctx, &*node).to_string()),
                         File(p) => ExecArtifact::Path(replace(p, ctx, &*node).as_ref().into()),
@@ -61,7 +61,7 @@ impl Lang {
                             .collect::<Vec<Arc<str>>>()
                             .join("\n")
                     });
-                    deps.insert(Dependency::Exec { cmd, input, name, artifact });
+                    deps.insert(Dependency::Exec { cmd, input, id, artifact });
                 }
                 ("POP", [StackRef(stack)]) => {
                     if let Some(stack) = ctx.stacks.get_mut(stack.as_str()) {
@@ -75,7 +75,9 @@ impl Lang {
                         }
                     }
                 }
-                ("PUSH", [StackRef(target), Str(value)]) if target.as_str() == "src" => {
+                ("PUSH", [StackRef(target), Str(value)])
+                    if ["src", "ref"].contains(&target.as_str()) =>
+                {
                     let value = replace(value, ctx, &*node);
                     ctx.stacks
                         .entry(Arc::from(target.as_str()))
@@ -113,6 +115,17 @@ impl Lang {
                             .1
                             .push(value.to_string().into());
                     }
+                }
+                ("SET", [StackRef(target), Str(value)]) => {
+                    let value = replace(value, ctx, node);
+                    let v = ctx
+                        .stacks
+                        .raw_entry_mut()
+                        .from_key(target.as_str())
+                        .or_insert(Arc::from(target.as_str()), vec![])
+                        .1;
+                    v.pop();
+                    v.push(Cow::Owned(value.to_string()));
                 }
                 ("WRITE", [StackRef(stack)]) => {
                     let stack = ctx.stacks.get(stack.as_str());

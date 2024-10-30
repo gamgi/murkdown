@@ -39,6 +39,12 @@ impl State {
     }
 
     #[cfg(test)]
+    pub fn insert_op(&self, op: Operation) -> OpId {
+        let mut ops = self.operations.lock().expect("poisoned lock");
+        ops.insert_node(op)
+    }
+
+    #[cfg(test)]
     pub fn insert_artifact(&self, uri: &str, art: Artifact) {
         let mut arts = self.artifacts.lock().expect("poisoned lock");
         arts.insert(uri.to_string(), art);

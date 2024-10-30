@@ -2,6 +2,7 @@ use std::{
     collections::hash_map::Entry,
     fmt::Write,
     path::PathBuf,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
 
@@ -284,11 +285,11 @@ pub async fn preprocess(
 
             let (uri_deps, exec_deps): (Vec<_>, Vec<_>) = deps
                 .into_iter()
-                .partition(|d| matches!(d, Dependency::URI(_)));
+                .partition(|d| matches!(d, Dependency::URI(_, _)));
 
             // schedule dependent tasks
             for uri in uri_deps {
-                let Dependency::URI(uri) = &uri else {
+                let Dependency::URI(kind, ref uri) = uri else {
                     unreachable!()
                 };
                 let (schema, uri_path) = uri.split_once(':').expect("uri to have schema");
@@ -298,51 +299,62 @@ pub async fn preprocess(
                     continue;
                 }
 
-                if schema == "exec" {
-                    graph.add_dependency(OpId::from(&op), OpId::exec(id));
-                    continue;
-                }
-
-                let path = locs
-                    .get(uri_path)
-                    .ok_or(AppError::file_not_found(uri_path))?
-                    .clone();
-
-                match schema {
-                    "file" => {
-                        graph.insert_node_chain([Operation::Load { id, path }, op.clone()]);
+                match kind {
+                    // means include
+                    "src" => {
+                        if schema == "exec" {
+                            graph.add_dependency(OpId::from(&op), OpId::exec(id));
+                            continue;
+                        }
+                        let path = locs
+                            .get(uri_path)
+                            .ok_or(AppError::file_not_found(uri_path))?
+                            .clone();
+                        match schema {
+                            "file" => {
+                                graph.insert_node_chain([Operation::Load { id, path }, op.clone()]);
+                            }
+                            "ast" => {
+                                graph.insert_node_chain([
+                                    Operation::Load { id: id.clone(), path },
+                                    Operation::Parse { id },
+                                    op.clone(),
+                                ]);
+                            }
+                            "parse" => {
+                                graph.insert_node_chain([
+                                    Operation::Load { id: id.clone(), path },
+                                    Operation::Parse { id: id.clone() },
+                                    Operation::Preprocess { id },
+                                    op.clone(),
+                                ]);
+                            }
+                            "copy" => {
+                                graph.insert_node_chain([
+                                    Operation::Copy { id, path },
+                                    Operation::Finish,
+                                ]);
+                            }
+                            _ => return Err(AppError::unknown_schema(schema)),
+                        }
                     }
-                    "ast" => {
-                        graph.insert_node_chain([
-                            Operation::Load { id: id.clone(), path },
-                            Operation::Parse { id },
-                            op.clone(),
-                        ]);
+                    // means copy or write
+                    "ref" => {
+                        let op = Operation::Write { id };
+                        graph.add_dependency(OpId::from(&op), OpId::from_str(uri)?);
+                        graph.insert_node_chain([op, Operation::Finish]);
                     }
-                    "parse" => {
-                        graph.insert_node_chain([
-                            Operation::Load { id: id.clone(), path },
-                            Operation::Parse { id: id.clone() },
-                            Operation::Preprocess { id },
-                            op.clone(),
-                        ]);
-                    }
-                    "copy" => {
-                        graph.insert_node_chain([Operation::Copy { id, path }, Operation::Finish]);
-                    }
-                    _ => return Err(AppError::unknown_schema(schema)),
+                    _ => unreachable!(),
                 }
             }
 
             for dep in exec_deps {
-                let Dependency::Exec { cmd, name, input, artifact, .. } = dep else {
+                let Dependency::Exec { cmd, id, input, artifact, .. } = dep else {
                     unreachable!()
                 };
-                let id: Arc<str> = name.into();
-                graph.insert_node_chain([
-                    Operation::Exec { id: id.clone(), cmd, input, artifact },
-                    op.clone(),
-                ]);
+                let id: Arc<str> = id.into();
+
+                graph.insert_node(Operation::Exec { id: id.clone(), cmd, input, artifact });
             }
         }
         _ => panic!("preprocessing unknown artifact"),
@@ -395,7 +407,8 @@ pub async fn write(
         let artifacts = artifacts.lock().expect("poisoned lock");
         let result = artifacts.get(&dep).expect("no write dependency");
         match result {
-            Artifact::Plaintext(_, content) => content.clone(),
+            Artifact::Plaintext(_, content) => content.to_string(),
+            Artifact::Binary(_, content) => String::from_utf8_lossy(content).to_string(),
             _ => panic!("writing unknown artifact"),
         }
     };

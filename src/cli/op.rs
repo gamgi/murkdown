@@ -134,8 +134,8 @@ impl OpId {
     }
 
     #[cfg(test)]
-    pub fn copy(id: impl Into<Arc<str>>) -> Self {
-        Self(Op::Copy, id.into())
+    pub fn write(id: impl Into<Arc<str>>) -> Self {
+        Self(Op::Write, id.into())
     }
 
     pub fn finish() -> Self {
@@ -199,6 +199,8 @@ impl FromStr for OpId {
             "file" => Op::Load,
             "ast" => Op::Parse,
             "parse" => Op::Preprocess,
+            "exec" => Op::Exec,
+            "copy" => Op::Copy,
             _ => return Err(AppError::unknown_schema(schema)),
         };
         Ok(Self(op, Arc::from(path)))

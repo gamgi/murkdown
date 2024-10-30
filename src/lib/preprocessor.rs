@@ -61,6 +61,7 @@ fn preprocess_recursive<'a>(
         }
         _ => {}
     }
+
     Ok(())
 }
 
@@ -113,7 +114,11 @@ fn preprocess_includes(
         let uri = format!("{schema}:{uri_path}");
 
         // add dependency
-        deps.insert(Dependency::URI(uri.clone()));
+        match &**key {
+            "ref" => deps.insert(Dependency::URI("ref", uri.clone())),
+            "src" => deps.insert(Dependency::URI("src", uri.clone())),
+            _ => unreachable!(),
+        };
 
         // add placeholder node to ast
         let arc = asts.entry(uri).or_insert_with(|| {
@@ -235,12 +240,12 @@ mod tests {
         assert_eq!(
             deps,
             HashSet::from([
-                Dependency::URI("exec:date".to_string()),
+                Dependency::URI("src", "exec:date".to_string()),
                 Dependency::Exec {
                     cmd: "date".to_string(),
                     input: None,
                     artifact: ExecArtifact::Stdout("text/plain".to_string()),
-                    name: "date".into(),
+                    id: "date".into(),
                 }
             ])
         );

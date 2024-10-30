@@ -29,11 +29,11 @@ pub struct Pointer(pub Weak<Mutex<Node>>);
 /// Dependency discovered by the preprocessor or compiler
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Dependency {
-    URI(URI),
+    URI(&'static str, URI),
     Exec {
+        id: String,
         cmd: String,
         input: Option<String>,
-        name: String,
         artifact: ExecArtifact,
     },
 }
