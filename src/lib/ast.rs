@@ -20,7 +20,7 @@ pub struct Node {
     #[builder(setter(into))]
     pub marker: Option<Arc<str>>,
     pub headers: Option<Vec<Arc<str>>>,
-    #[builder(setter(strip_option))]
+    #[builder(setter)]
     pub pointer: Option<Pointer>,
     #[builder(setter(strip_option, each(name = "add_child")))]
     pub children: Option<Vec<Node>>,

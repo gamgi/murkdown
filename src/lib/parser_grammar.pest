@@ -2,7 +2,7 @@
 Root            =  { SOI ~ RootHeader? ~ RootBlock* ~ EOI }
 
 Control         = _{ Block }
-Content         = _{ ("\\" ~ &STOP | !STOP) ~ Line ~ NEWLINE | LineEOI }
+Content         = _{ ("\\" ~ &STOP | !STOP) ~ (Ellipsis | Line) ~ NEWLINE | (EllipsisEOI | LineEOI) }
 
 
 Block           =  { PUSH(BLOCK_START) ~ !(NEWLINE | EOI) ~ (ShortBlock_ | LongBlocks_) ~ DROP }
@@ -15,6 +15,8 @@ ShortBlock      =  { (                               SPACE ~ Content) }
 
 Line            =  { ANY_LETTER* }
 LineEOI         =  { ANY_LETTER+ ~ &EOI }
+Ellipsis        =  { "..." }
+EllipsisEOI     =  { "..." ~ &EOI }
 
 BlockHeader     = _{ SPACE ~ BlockHeader_ }
 RootHeader      = _{ BlockHeader_ ~ (NEWLINE | &EOI) }

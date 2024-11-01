@@ -1,9 +1,9 @@
 bin.name = "md"
 args = "--output stdout build a.md"
-stdout = '''
+stdout = """
 This file contains a block with an id.
 
- First of A
+> First of A
 
 Then it includes said block
 
@@ -15,5 +15,5 @@ And then some more blocks.
 
 
 
-'''
+"""
 stderr = ""

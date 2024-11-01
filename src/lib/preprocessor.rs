@@ -95,7 +95,10 @@ fn preprocess_ids(node: &mut Node, asts: &mut AstMap, context: &str) {
         let uri = format!("parse:{context}#{id}");
 
         // pull node out and replace with new
-        let old = std::mem::take(node);
+        let mut new = node.clone();
+        new.children = None;
+
+        let old = std::mem::replace(node, new);
         let arc = match asts.entry(uri) {
             Entry::Occupied(r) => {
                 let mut mutex = r.get().lock().expect("poisoned lock");
@@ -165,12 +168,16 @@ fn preprocess_includes(
         });
 
         // add pointer to node
-        let pointer = Pointer(Arc::downgrade(arc));
-        if node.children.is_some() {
+        let pointer = Some(Pointer(Arc::downgrade(arc)));
+        if let Some(children) = node.children.as_mut() {
             if node.rule == Rule::Section {
                 todo!();
+            } else if let Some(node) = get_node_recursive(children.as_mut_slice(), |r| {
+                matches!(r, Rule::Ellipsis | Rule::EllipsisEOI)
+            }) {
+                node.pointer = pointer;
             } else {
-                node.pointer = Some(pointer);
+                node.pointer = pointer;
             }
         } else {
             let section = NodeBuilder::new(Rule::Section)
@@ -180,6 +187,21 @@ fn preprocess_includes(
             node.children = Some(vec![section]);
         }
     }
+}
+
+fn get_node_recursive(nodes: &mut [Node], condition: fn(Rule) -> bool) -> Option<&mut Node> {
+    for node in nodes.iter_mut() {
+        if node.pointer.is_some() {
+            continue;
+        } else if condition(node.rule) {
+            return Some(node);
+        } else if let Some(children) = node.children.as_mut() {
+            if let Some(result) = get_node_recursive(children.as_mut_slice(), condition) {
+                return Some(result);
+            }
+        }
+    }
+    None
 }
 
 /// Resolve path to matching entry from a list
@@ -258,6 +280,35 @@ mod tests {
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
+        assert!(block.pointer.is_some());
+    }
+
+    #[test]
+    fn test_preprocess_adds_pointer_at_ellipsis() {
+        let mut asts = AstMap::default();
+        let mut node = NodeBuilder::root()
+            .children(vec![NodeBuilder::block(">")
+                .add_prop(("src".into(), "bar".into()))
+                .children(vec![
+                    Node::new_line("foo"),
+                    NodeBuilder::new(Rule::Ellipsis).done(),
+                    Node::new_line("baz"),
+                ])
+                .done()])
+            .done();
+        let mut locs = LocationMap::default();
+
+        preprocess(&mut node, &mut asts, &mut locs, "").unwrap();
+
+        let section = node.children.as_ref().unwrap().first().unwrap();
+        let block = section
+            .children
+            .as_ref()
+            .unwrap()
+            .into_iter()
+            .nth(1)
+            .unwrap();
+
         assert!(block.pointer.is_some());
     }
 
