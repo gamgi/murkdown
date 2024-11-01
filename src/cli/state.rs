@@ -1,8 +1,10 @@
+use std::sync::Arc;
 use std::{path::PathBuf, sync::atomic::Ordering};
 
 use futures::stream::FuturesUnordered;
 use futures::{future::BoxFuture, FutureExt};
 use log::error;
+use murkdown::types::{ExecArtifact, ExecInput};
 use tokio::task::yield_now;
 use tokio_stream::StreamExt;
 
@@ -72,10 +74,21 @@ fn process_event(
                 let splits = None;
 
                 tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
+                let id: Arc<str> = Arc::from(format!("{graph_type}_graph.png"));
+                let input = Some(ExecInput::URI(format!("graph:{graph_type}")));
+
+                // NOTE: tasks are scheduled here because there should only be one graph task
                 state.insert_op_chain([
                     Operation::Gather { cmd, paths, splits },
                     Operation::Finish,
                     Operation::Graph { graph_type },
+                    Operation::Exec {
+                        id: id.clone(),
+                        cmd: "plantuml -pipe -tpng".to_string(),
+                        input,
+                        artifact: ExecArtifact::Stdout("image/png".to_string()),
+                    },
+                    Operation::Write { id },
                 ]);
             }
             Command::Load { ref paths, .. } => {
@@ -166,7 +179,7 @@ fn process_graph(
                     tasks.push(task::write(op, dep.unwrap(), arts, out).boxed())
                 }
                 Operation::Copy { .. } => tasks.push(task::copy(op, out).boxed()),
-                Operation::Graph { .. } => tasks.push(task::graph(op, ops).boxed()),
+                Operation::Graph { .. } => tasks.push(task::graph(op, ops, arts).boxed()),
                 Operation::Finish => {}
             }
             state.mark_op_processed(opid.clone());

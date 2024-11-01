@@ -113,7 +113,46 @@ async fn test_preprocess_adds_ref_operations() {
     let mut result_keys = graph.iter().map(|(v, _, _)| v).collect::<Vec<_>>();
     result_keys.sort();
 
-    assert_eq!(result_keys, [&OpId::write("bar"), &OpId::finish()]);
+    assert_eq!(result_keys, [&OpId::copy("bar"), &OpId::finish()]);
+}
+
+#[tokio::test]
+async fn test_preprocess_adds_exec_input_dependency() {
+    let node = NodeBuilder::root()
+        .add_section(vec![NodeBuilder::block(">")
+            .headers(Some(vec!["EXEC".into()]))
+            .done()])
+        .done();
+    let op = Operation::Preprocess { id: "foo".into() };
+    let dep = op.uri();
+    let ctx = State::new();
+    ctx.insert_op(op.clone());
+    ctx.insert_location("bar", PathBuf::from("file.txt"));
+    ctx.insert_artifact(&dep, Artifact::Ast(node));
+
+    preprocess(
+        op,
+        dep,
+        ctx.asts,
+        ctx.operations.clone(),
+        ctx.artifacts,
+        ctx.locations,
+    )
+    .await
+    .unwrap();
+
+    let graph = ctx.operations.lock().unwrap();
+
+    let mut result = vec![];
+    for (from, _vertex, edges) in graph.iter() {
+        let deps = edges.iter().cloned().collect::<Vec<_>>();
+        result.push((from, deps));
+    }
+    result.sort();
+    assert_eq!(
+        result,
+        [(&OpId::preprocess("foo"), vec![OpId::exec("run")]),]
+    );
 }
 
 #[tokio::test]
@@ -127,5 +166,19 @@ async fn test_graph() {
     let ctx = State::new();
     ctx.insert_artifact(&op.uri(), Artifact::Ast(node));
 
-    graph(op, ctx.operations).await.unwrap();
+    graph(op, ctx.operations, ctx.artifacts.clone())
+        .await
+        .unwrap();
+
+    let artifacts = ctx.artifacts.lock().unwrap();
+    let artifact = artifacts.get("graph:dependencies").unwrap();
+    let Artifact::Plaintext(media_type, content) = artifact else {
+        unreachable!()
+    };
+
+    assert_eq!(media_type, "text/plantuml");
+    assert_eq!(
+        content,
+        "@startuml\nskinparam defaultTextAlignment center\n'nodes\n'dependencies\n@enduml"
+    );
 }

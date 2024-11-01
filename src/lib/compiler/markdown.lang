@@ -3,6 +3,13 @@ PREPROCESS RULES:
   EXEC "date" TO text/plain AS "date"
   PUSH src "exec:date"
 
+[...EXEC...]$
+  PUSH src "exec:run"
+
+[...EXEC...] [SEC]$
+  SET stdin "\v"
+  EXEC "bash" TO text/plain AS "run"
+
 [...UML...]$
   PUSH ref "exec:plantuml.png"
 

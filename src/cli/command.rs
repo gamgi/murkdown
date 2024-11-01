@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fmt::Display, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
 use futures::StreamExt;
@@ -79,11 +79,18 @@ pub(crate) enum Command {
     Exit,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, ValueEnum)]
-#[cfg_attr(test, derive(Ord, PartialOrd))]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, ValueEnum, PartialOrd, Ord)]
 pub(crate) enum GraphType {
     /// Dependency graph
     Dependencies,
+}
+
+impl Display for GraphType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GraphType::Dependencies => write!(f, "dependencies"),
+        }
+    }
 }
 
 pub async fn handle(event_tx: EventTx, config: &Config) -> Result<(), AppError> {

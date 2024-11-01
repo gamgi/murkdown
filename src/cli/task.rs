@@ -8,7 +8,7 @@ use std::{
 
 use murkdown::{
     ast::{Node, NodeBuilder},
-    types::{Dependency, ExecArtifact, LibErrorPathCtx, LocationMap, URI},
+    types::{Dependency, ExecArtifact, ExecInput, LibErrorPathCtx, LocationMap, URI},
 };
 use murkdown::{compiler, parser};
 use murkdown::{preprocessor, types::AstMap};
@@ -110,6 +110,20 @@ pub async fn exec(
     };
 
     let (program, args) = cmd.split_once(' ').unwrap_or((cmd, ""));
+
+    let input = match input {
+        Some(ExecInput::String(content)) => Some(Arc::from(content.as_ref())),
+        Some(ExecInput::URI(uri)) => {
+            let artifacts = artifacts.lock().expect("poisoned lock");
+
+            match artifacts.get(uri) {
+                Some(Artifact::Plaintext(_, content)) => Some(Arc::from(content.as_ref())),
+                Some(_) => todo!(),
+                None => None,
+            }
+        }
+        None => None,
+    };
 
     let mut child = spawn_command(program, args)?;
     write_command(&mut child, input.as_deref(), program).await?;
@@ -293,8 +307,8 @@ pub async fn preprocess(
                     unreachable!()
                 };
                 let (schema, uri_path) = uri.split_once(':').expect("uri to have schema");
-                let id = Arc::from(uri_path);
 
+                let id: Arc<str> = Arc::from(uri_path);
                 if graph.get_uri(uri).is_some() {
                     continue;
                 }
@@ -302,8 +316,10 @@ pub async fn preprocess(
                 match kind {
                     // means include
                     "src" => {
+                        // NOTE: these are technically not correct, since the dependency to exec should be
+                        // on the dependent node of current op, but we don't have a mapping for that now
                         if schema == "exec" {
-                            graph.add_dependency(OpId::from(&op), OpId::exec(id));
+                            graph.add_dependency(OpId::from(&op), OpId::exec(uri_path));
                             continue;
                         }
                         let path = locs
@@ -339,11 +355,28 @@ pub async fn preprocess(
                         }
                     }
                     // means copy or write
-                    "ref" => {
-                        let op = Operation::Write { id };
-                        graph.add_dependency(OpId::from(&op), OpId::from_str(uri)?);
-                        graph.insert_node_chain([op, Operation::Finish]);
-                    }
+                    "ref" => match schema {
+                        "exec" => {
+                            let id: Arc<str> = uri_path.into();
+                            graph.add_dependency(OpId::write(id.clone()), OpId::exec(uri_path));
+                            graph.insert_node_chain([Operation::Write { id }, Operation::Finish]);
+                        }
+                        "copy" => {
+                            let path = locs
+                                .get(uri_path)
+                                .ok_or(AppError::file_not_found(uri_path))?
+                                .clone();
+                            graph.insert_node_chain([
+                                Operation::Copy { id, path },
+                                Operation::Finish,
+                            ]);
+                        }
+                        _ => {
+                            let op = Operation::Write { id };
+                            graph.add_dependency(OpId::from(&op), OpId::from_str(uri)?);
+                            graph.insert_node_chain([op, Operation::Finish]);
+                        }
+                    },
                     _ => unreachable!(),
                 }
             }
@@ -352,9 +385,8 @@ pub async fn preprocess(
                 let Dependency::Exec { cmd, id, input, artifact, .. } = dep else {
                     unreachable!()
                 };
-                let id: Arc<str> = id.into();
-
-                graph.insert_node(Operation::Exec { id: id.clone(), cmd, input, artifact });
+                let input = input.map(ExecInput::String);
+                graph.insert_node(Operation::Exec { id: id.into(), cmd, input, artifact });
             }
         }
         _ => panic!("preprocessing unknown artifact"),
@@ -406,21 +438,24 @@ pub async fn write(
     let content = {
         let artifacts = artifacts.lock().expect("poisoned lock");
         let result = artifacts.get(&dep).expect("no write dependency");
+        if let Output::Stdout = output {
+            if let Artifact::Plaintext(_, content) = result {
+                println!("{content}")
+            }
+            return Ok(false);
+        }
         match result {
-            Artifact::Plaintext(_, content) => content.to_string(),
-            Artifact::Binary(_, content) => String::from_utf8_lossy(content).to_string(),
+            Artifact::Plaintext(_, content) => content.as_bytes().to_owned(),
+            Artifact::Binary(_, content) => content.to_owned(),
             _ => panic!("writing unknown artifact"),
         }
     };
 
-    match output {
-        Output::Stdout => println!("{content}"),
-        Output::Path(root) => {
-            let target = root.join(&*id);
-            fs::write(&target, content)
-                .await
-                .map_err(|err| AppError::write_error(err, target))?;
-        }
+    if let Output::Path(root) = output {
+        let target = root.join(&*id);
+        fs::write(&target, content)
+            .await
+            .map_err(|err| AppError::write_error(err, target))?;
     }
 
     Ok(false)
@@ -446,7 +481,11 @@ pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
 }
 
 /// Compile operations graph to PlantUML
-pub async fn graph(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
+pub async fn graph(
+    op: Operation,
+    operations: Arc<Mutex<OpGraph>>,
+    artifacts: Arc<Mutex<ArtifactMap>>,
+) -> Result<bool, AppError> {
     let Operation::Graph { graph_type: GraphType::Dependencies } = op else {
         unreachable!()
     };
@@ -469,12 +508,17 @@ pub async fn graph(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<boo
             writeln!(&mut cards, "\"{path}\\n({schema})\" as {uid}").expect("write");
         }
 
-        for source in edges.iter().filter(|&e| e != &OpId::graph()) {
+        for source in edges.iter().filter(|&e| !e.is_hidden()) {
             writeln!(&mut deps, "{} --> {}", source.uid(), target.uid()).expect("write");
         }
     }
+    let result = format!("{}{}@enduml", cards, deps);
 
-    println!("{}{}@enduml", cards, deps);
+    let mut artifacts = artifacts.lock().expect("poisoned lock");
+    artifacts.insert(
+        op.uri(),
+        Artifact::Plaintext("text/plantuml".to_string(), result),
+    );
 
     Ok(true)
 }

@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
-use murkdown::types::{ExecArtifact, URI};
+use murkdown::types::{ExecArtifact, ExecInput, URI};
 
 use super::command::{Command, GraphType};
 use super::types::AppError;
@@ -55,7 +55,7 @@ pub enum Operation {
     Exec {
         id: Id,
         cmd: String,
-        input: Option<String>,
+        input: Option<ExecInput>,
         artifact: ExecArtifact,
     },
     Load {
@@ -134,6 +134,10 @@ impl OpId {
     }
 
     #[cfg(test)]
+    pub fn copy(id: impl Into<Arc<str>>) -> Self {
+        Self(Op::Copy, id.into())
+    }
+
     pub fn write(id: impl Into<Arc<str>>) -> Self {
         Self(Op::Write, id.into())
     }
@@ -142,8 +146,8 @@ impl OpId {
         Self(Op::Finish, Arc::from("Finish"))
     }
 
-    pub fn graph() -> Self {
-        Self(Op::Graph, Arc::from("Graph"))
+    pub fn graph(id: impl Into<Arc<str>>) -> Self {
+        Self(Op::Graph, id.into())
     }
 
     pub fn uri(&self) -> URI {
@@ -156,13 +160,17 @@ impl OpId {
             Op::Compile => format!("compile:{}", self.1),
             Op::Write => format!("write:{}", self.1),
             Op::Copy => format!("copy:{}", self.1),
-            Op::Graph => String::from("graph:"),
+            Op::Graph => format!("graph:{}", self.1),
             Op::Finish => String::from("finish:"),
         }
     }
 
     pub fn uid(&self) -> String {
         STANDARD_NO_PAD.encode(self.uri())
+    }
+
+    pub fn is_hidden(&self) -> bool {
+        matches!(self.0, Op::Graph)
     }
 }
 
@@ -184,7 +192,7 @@ impl From<&Operation> for OpId {
             | Compile { id }
             | Write { id }
             | Copy { id, .. } => OpId(other.into(), id.clone()),
-            Graph { .. } => OpId::graph(),
+            Graph { graph_type } => OpId::graph(graph_type.to_string()),
             Finish => OpId::finish(),
         }
     }
