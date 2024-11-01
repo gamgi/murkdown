@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
@@ -53,10 +54,12 @@ fn preprocess_recursive<'a>(
     match node.rule {
         Rule::Root => {
             preprocess_headers(node);
+            preprocess_ids(node, asts, context);
             preprocess_includes(node, asts, locs, context, deps);
         }
         Rule::Block => {
             preprocess_headers(node);
+            preprocess_ids(node, asts, context);
             preprocess_includes(node, asts, locs, context, deps);
         }
         _ => {}
@@ -86,6 +89,28 @@ fn preprocess_headers(node: &mut Node) {
     }
 }
 
+/// Moves nodes with id to asts
+fn preprocess_ids(node: &mut Node, asts: &mut AstMap, context: &str) {
+    if let Some(id) = node.find_prop("id") {
+        let uri = format!("parse:{context}#{id}");
+
+        // pull node out and replace with new
+        let old = std::mem::take(node);
+        let arc = match asts.entry(uri) {
+            Entry::Occupied(r) => {
+                let mut mutex = r.get().lock().expect("poisoned lock");
+                *mutex = old;
+                &r.get().clone()
+            }
+            Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(old))),
+        };
+
+        // add pointer to new node
+        let pointer = Pointer(Arc::downgrade(arc));
+        node.pointer = Some(pointer);
+    }
+}
+
 /// Adds include pointers to nodes and updates deps
 fn preprocess_includes(
     node: &mut Node,
@@ -102,16 +127,29 @@ fn preprocess_includes(
         .filter(|&(k, _)| PREPROCESSABLE_PROPS.contains(&&**k));
 
     for (key, uri_or_path) in props {
-        let (schema, path) = match &**key {
+        let (scheme, path) = match &**key {
             "src" => uri_or_path
                 .split_once(':')
                 .unwrap_or(("parse", uri_or_path)),
             "ref" => uri_or_path.split_once(':').unwrap_or(("copy", uri_or_path)),
             _ => unreachable!(),
         };
-        // NOTE: resolves URI path to canonical form
-        let uri_path = resolve_path(path, locs.keys(), context).unwrap_or(path);
-        let uri = format!("{schema}:{uri_path}");
+        let (path, fragment) = path.rsplit_once('#').unwrap_or((path, ""));
+
+        // NOTE: first resolve URI path to canonical form
+        let uri_path = resolve_path(path, locs.keys().map(String::as_str), context).unwrap_or(path);
+
+        let uri_path = match fragment.is_empty() {
+            true => uri_path.to_string(),
+            false => format!("{uri_path}#{fragment}"),
+        };
+
+        // NOTE: then resolve URI path to possible AST node
+        let uri_path = resolve_scheme_path(&uri_path, scheme, asts.keys(), context)
+            .unwrap_or(&uri_path)
+            .to_string();
+
+        let uri = format!("{scheme}:{uri_path}");
 
         // add dependency
         match &**key {
@@ -147,10 +185,10 @@ fn preprocess_includes(
 /// Resolve path to matching entry from a list
 pub fn resolve_path<'a, I>(path: &str, paths: I, context: &str) -> Option<&'a str>
 where
-    I: Iterator<Item = &'a String>,
+    I: Iterator<Item = &'a str>,
 {
     // Partition paths by matching context
-    let (mut paths_within, mut paths_without): (Vec<&String>, Vec<&String>) =
+    let (mut paths_within, mut paths_without): (Vec<&str>, Vec<&str>) =
         paths.partition(|u| u.starts_with(context));
 
     paths_within.sort();
@@ -180,6 +218,21 @@ where
         return Some(result);
     }
     None
+}
+
+/// Resolve path to matching entry from a list with a given scheme prefix
+pub fn resolve_scheme_path<'a, I>(
+    path: &str,
+    scheme: &str,
+    paths: I,
+    context: &str,
+) -> Option<&'a str>
+where
+    I: Iterator<Item = &'a String>,
+{
+    let prefix = format!("{scheme}:");
+    let paths = paths.filter_map(|p| p.strip_prefix(&prefix));
+    resolve_path(path, paths, context)
 }
 
 #[cfg(test)]
@@ -226,6 +279,47 @@ mod tests {
     }
 
     #[test]
+    fn test_preprocess_moves_id_nodes_to_asts() {
+        let mut asts = AstMap::default();
+        let block = NodeBuilder::block(">")
+            .add_prop(("id".into(), "bar".into()))
+            .done();
+
+        let mut node = NodeBuilder::root().children(vec![block.clone()]).done();
+        let mut locs = LocationMap::default();
+        preprocess(&mut node, &mut asts, &mut locs, "foo").unwrap();
+
+        let new_block = node.children.as_ref().unwrap().first().unwrap();
+        assert!(new_block.pointer.is_some());
+
+        let moved_block = asts.get("parse:foo#bar").unwrap().lock().unwrap();
+        assert_eq!(*moved_block, block);
+    }
+
+    #[test]
+    fn test_preprocess_resolves_paths_and_fragments() {
+        let mut asts = AstMap::default();
+        asts.insert(
+            "parse:other.md#bar".to_string(),
+            Arc::new(Mutex::new(Node::new_line("other"))),
+        );
+
+        let mut node = NodeBuilder::root()
+            .children(vec![NodeBuilder::block(">")
+                .add_prop(("src".into(), "#bar".into()))
+                .done()])
+            .done();
+        let mut locs = LocationMap::default();
+        locs.insert("file.md".to_string(), PathBuf::from("file.md"));
+        locs.insert("other.md".to_string(), PathBuf::from("other.md"));
+        preprocess(&mut node, &mut asts, &mut locs, "file.md").unwrap();
+
+        let section = node.children.as_ref().unwrap().first().unwrap();
+        let block = section.children.as_ref().unwrap().first().unwrap();
+        assert!(block.pointer.is_some());
+    }
+
+    #[test]
     fn test_preprocess_runs_precompile() {
         let mut asts = AstMap::default();
         let mut node = NodeBuilder::root()
@@ -268,7 +362,10 @@ mod tests_resolve_path {
         let mut map = HashMap::<String, ()>::new();
         map.insert("aaa/bar".to_string(), ());
         map.insert("bbb/bar".to_string(), ());
-        assert_eq!(resolve_path("bar", map.keys(), "bbb"), Some("bbb/bar"));
+        assert_eq!(
+            resolve_path("bar", map.keys().map(String::as_str), "bbb"),
+            Some("bbb/bar")
+        );
     }
 
     #[test]
@@ -280,7 +377,7 @@ mod tests_resolve_path {
 
         // prefer sibling match
         assert_eq!(
-            resolve_path("bar", map.keys(), "bbb/111"),
+            resolve_path("bar", map.keys().map(String::as_str), "bbb/111"),
             Some("bbb/222/bar")
         );
     }
@@ -293,35 +390,42 @@ mod tests_resolve_path {
         map.insert("bbb/222#win".to_string(), ());
         map.insert("aaa/111#id".to_string(), ());
         map.insert("aaa/111#win".to_string(), ());
-
         assert_eq!(
-            resolve_path("#id", map.keys(), "bbb/111"),
+            resolve_path("#id", map.keys().map(String::as_str), "bbb/111"),
             Some("bbb/111#id")
         );
+
         assert_eq!(
-            resolve_path("#win", map.keys(), "bbb/111"),
+            resolve_path("#win", map.keys().map(String::as_str), "bbb/111"),
             Some("bbb/222#win")
         );
     }
+}
+
+#[cfg(test)]
+mod tests_resolve_scheme_path {
+    use std::collections::HashMap;
+
+    use super::*;
 
     #[test]
     fn test_schemas() {
         let mut map = HashMap::<String, ()>::new();
-        map.insert("bbb/baz#id".to_string(), ());
-        map.insert("bbb/baz#win".to_string(), ());
-        map.insert("aaa/bar#id".to_string(), ());
-        map.insert("aaa/bar#win".to_string(), ());
+        map.insert("this:bbb/baz#id".to_string(), ());
+        map.insert("other:bbb/baz#win".to_string(), ());
+        map.insert("this:aaa/bar#id".to_string(), ());
+        map.insert("this:aaa/bar#win".to_string(), ());
         // prefer sibling match
         assert_eq!(
-            resolve_path("#id", map.keys(), "bbb/bar"),
+            resolve_scheme_path("#id", "this", map.keys(), "bbb/bar"),
             Some("bbb/baz#id")
         );
         // then from top
         assert_eq!(
-            resolve_path("#win", map.keys(), "???/bar"),
+            resolve_scheme_path("#win", "this", map.keys(), "???/bar"),
             Some("aaa/bar#win")
         );
         // should not match other schemas
-        assert_eq!(resolve_path("???:#win", map.keys(), "bbb/bar"), None);
+        assert_eq!(resolve_scheme_path("baz#win", "this", map.keys(), ""), None);
     }
 }

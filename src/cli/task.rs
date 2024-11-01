@@ -216,17 +216,23 @@ pub async fn load(
         ),
     };
 
-    // add node to ast
+    let node = match &artifact {
+        Artifact::Plaintext(_, content) => NodeBuilder::root()
+            .add_section(content.split('\n').map(Node::new_line).collect())
+            .done(),
+        _ => todo!(),
+    };
+
+    // upsert node to ast
     let mut asts = asts.lock().expect("poisoned lock");
-    asts.entry(uri.clone()).or_insert_with(|| {
-        let node = match &artifact {
-            Artifact::Plaintext(_, content) => NodeBuilder::root()
-                .add_section(content.split('\n').map(Node::new_line).collect())
-                .done(),
-            _ => todo!(),
-        };
-        Arc::new(Mutex::new(node))
-    });
+    match asts.entry(uri.clone()) {
+        Entry::Occupied(r) => {
+            let mut mutex = r.get().lock().expect("poisoned lock");
+            *mutex = node;
+            &r.get().clone()
+        }
+        Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(node))),
+    };
 
     // add artifact
     let mut artifacts = artifacts.lock().expect("poisoned lock");
@@ -308,8 +314,10 @@ pub async fn preprocess(
                 };
                 let (schema, uri_path) = uri.split_once(':').expect("uri to have schema");
 
+                let (uri_path, _) = uri_path.rsplit_once('#').unwrap_or((uri_path, ""));
                 let id: Arc<str> = Arc::from(uri_path);
-                if graph.get_uri(uri).is_some() {
+                let uri = format!("{schema}:{uri_path}");
+                if graph.get_uri(&uri).is_some() {
                     continue;
                 }
 
@@ -373,7 +381,7 @@ pub async fn preprocess(
                         }
                         _ => {
                             let op = Operation::Write { id };
-                            graph.add_dependency(OpId::from(&op), OpId::from_str(uri)?);
+                            graph.add_dependency(OpId::from(&op), OpId::from_str(&uri)?);
                             graph.insert_node_chain([op, Operation::Finish]);
                         }
                     },

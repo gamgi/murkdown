@@ -1,0 +1,19 @@
+bin.name = "md"
+args = "--output stdout build a.md"
+stdout = '''
+This file contains a block with an id.
+
+ First of A
+
+Then it includes said block
+
+> First of A
+
+And then some more blocks.
+
+> First of B
+
+
+
+'''
+stderr = ""
