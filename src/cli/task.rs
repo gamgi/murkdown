@@ -129,6 +129,12 @@ pub async fn exec(
     write_command(&mut child, input.as_deref(), program).await?;
     let result = wait_command(child, program).await?;
 
+    if let Some(code) = result.status.code() {
+        if code != 0 {
+            return Err(AppError::execution_exited(program, code));
+        }
+    }
+
     let stdout_artifact = match String::from_utf8(result.stdout) {
         Ok(v) => Artifact::Plaintext("text/plain".to_string(), v),
         Err(v) => Artifact::Binary("application/octet-stream".to_string(), v.into_bytes()),

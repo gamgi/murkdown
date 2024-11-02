@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
 use murkdown::ast::NodeBuilder;
+use murkdown::types::ExecArtifact;
 
 use crate::cli::command::GraphType;
-use crate::cli::task::{graph, index, preprocess};
+use crate::cli::task::{exec, graph, index, preprocess};
 use crate::cli::{
     artifact::Artifact,
     op::{OpId, Operation},
@@ -28,6 +29,21 @@ async fn test_index_strips_relative_path_and_duplicates() {
     let result_keys = locs.keys().collect::<Vec<_>>();
 
     assert_eq!(result_keys, [&"src/cli/task/tests.rs".to_string()]);
+}
+
+#[tokio::test]
+async fn test_exec_returns_error_on_nonzero() {
+    let op = Operation::Exec {
+        id: "foo".into(),
+        cmd: "test 1 = 0".to_string(),
+        input: None,
+        artifact: ExecArtifact::Stdout(String::new()),
+    };
+    let ctx = State::new();
+
+    let result = exec(op, ctx.asts, ctx.artifacts).await;
+
+    assert!(result.is_err());
 }
 
 #[tokio::test]

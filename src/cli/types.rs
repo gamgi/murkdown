@@ -42,6 +42,8 @@ pub enum AppErrorKind {
         source: std::io::Error,
         program: String,
     },
+    #[error("execution of `{program}` exited with code: {code}")]
+    ExecutionExited { program: String, code: i32 },
     #[error("invalid arguments for `{program}`: {args}")]
     BadExecArgs { program: String, args: String },
     #[error("file not found `{0}`")]
