@@ -172,9 +172,7 @@ fn preprocess_includes(
         if let Some(children) = node.children.as_mut() {
             if node.rule == Rule::Section {
                 todo!();
-            } else if let Some(node) = get_node_recursive(children.as_mut_slice(), |r| {
-                matches!(r, Rule::Ellipsis | Rule::EllipsisEOI)
-            }) {
+            } else if let Some(node) = get_ellipsis_node_recursive(children.as_mut_slice()) {
                 node.pointer = pointer;
             } else {
                 node.pointer = pointer;
@@ -189,14 +187,16 @@ fn preprocess_includes(
     }
 }
 
-fn get_node_recursive(nodes: &mut [Node], condition: fn(Rule) -> bool) -> Option<&mut Node> {
+fn get_ellipsis_node_recursive(nodes: &mut [Node]) -> Option<&mut Node> {
     for node in nodes.iter_mut() {
         if node.pointer.is_some() {
             continue;
-        } else if condition(node.rule) {
+        } else if node.find_prop("src").is_some() {
+            continue;
+        } else if matches!(node.rule, Rule::Ellipsis | Rule::EllipsisEOI) {
             return Some(node);
         } else if let Some(children) = node.children.as_mut() {
-            if let Some(result) = get_node_recursive(children.as_mut_slice(), condition) {
+            if let Some(result) = get_ellipsis_node_recursive(children.as_mut_slice()) {
                 return Some(result);
             }
         }
