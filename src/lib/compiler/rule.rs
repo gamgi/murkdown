@@ -8,14 +8,14 @@ use pest_derive::Parser;
 use regex::Regex;
 
 use crate::compiler::rule_argument::Arg;
-use crate::types::{LangMap, LibError};
+use crate::types::{LibError, RuleMap};
 
 #[derive(Parser)]
 #[grammar = "lib/compiler/rule_grammar.pest"]
 struct RawRuleParser;
 
 /// Compiler rule
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct LangRule {
     #[allow(unused)]
     path: String,
@@ -56,7 +56,7 @@ pub struct Context<'a> {
 }
 
 /// Parse input to rules
-pub fn parse(input: &str) -> Result<LangMap, LibError> {
+pub fn parse(input: &str) -> Result<RuleMap, LibError> {
     RawRuleParser::parse(Rule::Root, input)
         .map_err(|e| LibError::from(Box::new(e)))
         .and_then(parse_root)
@@ -64,7 +64,7 @@ pub fn parse(input: &str) -> Result<LangMap, LibError> {
 
 fn parse_root<'a>(
     mut pairs: impl Iterator<Item = Pair<'a, Rule>> + 'a,
-) -> Result<LangMap, LibError> {
+) -> Result<RuleMap, LibError> {
     let mut compile_rules = Vec::new();
     let mut preprocess_rules = Vec::new();
 

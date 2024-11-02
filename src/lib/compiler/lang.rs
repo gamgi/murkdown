@@ -6,16 +6,17 @@ use super::{
 };
 use crate::{
     ast::Node,
-    types::{Dependency, ExecArtifact, LangMap, LibError},
+    types::{Dependency, ExecArtifact, LibError, RuleMap},
 };
 
+#[derive(Debug, Clone)]
 pub struct Lang {
-    pub rules: LangMap,
+    pub(crate) rules: RuleMap,
 }
 
 /// A set of compiler rules
 impl Lang {
-    pub fn new(input: &'static str) -> Result<Lang, LibError> {
+    pub fn new(input: &str) -> Result<Lang, LibError> {
         let rules = rule::parse(input)?;
 
         Ok(Lang { rules })
@@ -176,6 +177,14 @@ fn replace<'a>(template: &'a str, ctx: &Context, node: &Node) -> Cow<'a, str> {
         }
     }
     Cow::Owned(result)
+}
+
+#[cfg(test)]
+impl Default for Lang {
+    fn default() -> Self {
+        Self::new(include_str!("../../lib/compiler/markdown.lang"))
+            .expect("builtin markdown to work")
+    }
 }
 
 #[cfg(test)]

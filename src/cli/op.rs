@@ -70,6 +70,7 @@ pub enum Operation {
     },
     Compile {
         id: Id,
+        format: String,
     },
     Write {
         id: Id,
@@ -189,7 +190,7 @@ impl From<&Operation> for OpId {
             | Exec { id, .. }
             | Parse { id, .. }
             | Preprocess { id }
-            | Compile { id }
+            | Compile { id, .. }
             | Write { id }
             | Copy { id, .. } => OpId(other.into(), id.clone()),
             Graph { graph_type } => OpId::graph(graph_type.to_string()),

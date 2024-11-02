@@ -4,7 +4,7 @@ pub(crate) mod rule_argument;
 
 use std::collections::HashSet;
 
-use lang::Lang;
+pub use lang::Lang;
 use rule::Context;
 pub(crate) use rule::Rule;
 
@@ -13,14 +13,13 @@ use crate::parser;
 use crate::types::{Dependency, LibError, Pointer};
 
 /// Compile AST to string
-pub fn compile(node: &mut Node) -> Result<String, LibError> {
-    let lang = Lang::new(include_str!("compiler/markdown.lang"))?;
+pub fn compile(node: &mut Node, lang: Option<&Lang>) -> Result<String, LibError> {
     let mut ignored_deps = HashSet::new();
     compile_recusive(
         std::slice::from_mut(&mut *node),
         &mut Context::default(),
         &mut ignored_deps,
-        &lang,
+        lang.expect("language"),
         "",
     )
 }
@@ -78,19 +77,21 @@ mod tests {
 
     #[test]
     fn test_compile() {
+        let lang = Some(Lang::default());
         let mut node = NodeBuilder::root()
             .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
                 .add_section(vec![Node::new_line("foo")])
                 .done()])
             .done();
-        let result = compile(&mut node).unwrap();
+        let result = compile(&mut node, lang.as_ref()).unwrap();
 
         assert_eq!(&result, "> foo\n");
     }
 
     #[test]
     fn test_compile_nested() {
+        let lang = Some(Lang::default());
         let mut node = NodeBuilder::root()
             .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
@@ -104,7 +105,7 @@ mod tests {
                 ])
                 .done()])
             .done();
-        let result = compile(&mut node).unwrap();
+        let result = compile(&mut node, lang.as_ref()).unwrap();
         assert_eq!(
             result,
             indoc! {

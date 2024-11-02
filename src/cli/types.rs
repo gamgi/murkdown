@@ -1,7 +1,10 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use clap::error::Error as ClapError;
-use murkdown::types::{LibError, URI};
+use murkdown::{
+    compiler::Lang,
+    types::{LibError, URI},
+};
 use thiserror::Error;
 use tokio::sync::mpsc::{self};
 
@@ -20,6 +23,9 @@ pub enum Event {
 
 /// Map from URI (eg. load:foo.fd) to artefact
 pub type ArtifactMap = HashMap<URI, Artifact>;
+
+/// Map from format to language rules
+pub(crate) type LangMap = HashMap<String, Lang>;
 
 /// Output target
 #[derive(Debug, Default, Clone)]

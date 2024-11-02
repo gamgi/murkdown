@@ -1,5 +1,5 @@
 bin.name = "md"
-args = "--output stdout build a.md"
+args = "--output stdout --format markdown build a.md"
 stdout = '''
 This file includes another
 
@@ -9,17 +9,17 @@ This file includes another
 then it includes the source of itself
 
 > This file includes another
-> 
+>
 > > [!FOO](src="b.md")
 > > this is overwritten
-> 
+>
 > then it includes the source of itself
-> 
+>
 > > [!BAR](src="file:a.md")
 > > Ad Infinitum
-> 
+>
 > and that is that.
-> 
+>
 
 and that is that.
 

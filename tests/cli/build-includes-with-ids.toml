@@ -1,5 +1,5 @@
 bin.name = "md"
-args = "--output stdout build a.md"
+args = "--output stdout --format markdown build a.md"
 stdout = """
 This file contains a block with an id.
 

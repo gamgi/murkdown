@@ -1,10 +1,10 @@
-#[cfg(test)]
-use std::path::PathBuf;
 use std::{
     collections::{HashMap, HashSet},
-    sync::{atomic::AtomicBool, Arc, Mutex},
+    path::PathBuf,
+    sync::{atomic::AtomicBool, Arc, Mutex, OnceLock},
 };
 
+use murkdown::compiler::Lang;
 use murkdown::types::{AstMap, LocationMap};
 
 #[cfg(test)]
@@ -12,15 +12,16 @@ use super::artifact::Artifact;
 use super::{
     graph::OpGraph,
     op::{OpId, Operation},
-    types::ArtifactMap,
+    types::{AppError, AppErrorPathCtx, ArtifactMap, LangMap},
 };
 
 /// State container
 #[derive(Debug, Clone)]
-pub struct State {
+pub(crate) struct State {
     pub artifacts: Arc<Mutex<ArtifactMap>>,
     pub asts: Arc<Mutex<AstMap>>,
     pub locations: Arc<Mutex<LocationMap>>,
+    pub languages: Arc<OnceLock<LangMap>>,
     pub operations: Arc<Mutex<OpGraph>>,
     pub operations_processed: Arc<Mutex<HashSet<OpId>>>,
     pub should_exit: Arc<AtomicBool>,
@@ -32,6 +33,7 @@ impl State {
             artifacts: Arc::new(Mutex::new(HashMap::new())),
             asts: Arc::new(Mutex::new(HashMap::new())),
             locations: Arc::new(Mutex::new(HashMap::new())),
+            languages: Arc::new(OnceLock::new()),
             operations: Arc::new(Mutex::new(OpGraph::new())),
             operations_processed: Arc::new(Mutex::new(HashSet::new())),
             should_exit: Arc::new(AtomicBool::new(false)),
@@ -72,6 +74,29 @@ impl State {
     pub fn is_op_processed(&self, id: &OpId) -> bool {
         let processed = self.operations_processed.lock().expect("poisoned lock");
         processed.contains(id)
+    }
+
+    pub fn load_languages(&self, format: &str) -> Result<(), AppError> {
+        if self.languages.get().is_none() {
+            // builtin
+            let markdown = include_str!("../lib/compiler/markdown.lang");
+            let html = include_str!("../lib/compiler/html.lang");
+
+            let mut languages = HashMap::from([
+                ("markdown".to_string(), Lang::new(markdown)?),
+                ("html".to_string(), Lang::new(html)?),
+            ]);
+
+            // custom
+            if !languages.contains_key(format) {
+                let path = PathBuf::from(format).with_extension("lang");
+                let custom = std::fs::read_to_string(&path).with_ctx(path)?;
+                languages.insert(format.to_string(), Lang::new(&custom)?);
+            }
+
+            self.languages.set(languages).expect("languages are loaded");
+        }
+        Ok(())
     }
 
     /// Clear state
