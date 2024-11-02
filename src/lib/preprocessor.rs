@@ -189,9 +189,7 @@ fn preprocess_includes(
 
 fn get_ellipsis_node_recursive(nodes: &mut [Node]) -> Option<&mut Node> {
     for node in nodes.iter_mut() {
-        if node.pointer.is_some() {
-            continue;
-        } else if node.find_prop("src").is_some() {
+        if node.pointer.is_some() || node.find_prop("src").is_some() {
             continue;
         } else if matches!(node.rule, Rule::Ellipsis | Rule::EllipsisEOI) {
             return Some(node);

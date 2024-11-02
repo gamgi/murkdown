@@ -70,7 +70,6 @@ pub enum Operation {
     },
     Compile {
         id: Id,
-        format: String,
     },
     Write {
         id: Id,

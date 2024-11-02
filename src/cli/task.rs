@@ -81,19 +81,15 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
                         // reload
                     }
                 }
-                Command::Build { format, .. } | Command::Graph { format, .. } => graph
-                    .insert_node_chain([
-                        op.clone(),
-                        Operation::Load { id: id.clone(), path },
-                        Operation::Parse { id: id.clone() },
-                        Operation::Preprocess { id: id.clone() },
-                        Operation::Compile {
-                            id: id.clone(),
-                            format: format.clone().unwrap(),
-                        },
-                        Operation::Write { id: id.clone() },
-                        Operation::Finish,
-                    ]),
+                Command::Build { .. } | Command::Graph { .. } => graph.insert_node_chain([
+                    op.clone(),
+                    Operation::Load { id: id.clone(), path },
+                    Operation::Parse { id: id.clone() },
+                    Operation::Preprocess { id: id.clone() },
+                    Operation::Compile { id: id.clone() },
+                    Operation::Write { id: id.clone() },
+                    Operation::Finish,
+                ]),
                 _ => panic!("gather on bad command"),
             }
         }
@@ -418,14 +414,15 @@ pub async fn compile(
     op: Operation,
     dep: URI,
     artifacts: Arc<Mutex<ArtifactMap>>,
+    format: String,
     languages: Arc<OnceLock<LangMap>>,
 ) -> Result<bool, AppError> {
-    let Operation::Compile { ref format, .. } = op else {
+    let Operation::Compile { .. } = op else {
         unreachable!()
     };
     let mut artifacts = artifacts.lock().expect("poisoned lock");
     let ast = artifacts.get(&dep).expect("no compile dependency");
-    let lang = languages.get().expect("languages not loaded").get(format);
+    let lang = languages.get().expect("languages not loaded").get(&format);
 
     let result = match ast.clone() {
         Artifact::Ast(mut node) => compiler::compile(&mut node, lang).unwrap(),

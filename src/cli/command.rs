@@ -11,6 +11,10 @@ use super::{
 #[derive(Parser, Debug, Default)]
 #[command(author, version, about, long_about = None)]
 pub(crate) struct Config {
+    /// Output format
+    #[clap(short, long = "format", default_value = "html", value_parser = clap::builder::NonEmptyStringValueParser::new(), global = true)]
+    pub format: Option<String>,
+
     /// Interactive mode
     #[clap(long, global = true)]
     pub interactive: bool,
@@ -56,10 +60,6 @@ pub(crate) enum Command {
         #[clap(value_name = "PATH")]
         #[arg(default_values_t = [".".to_string()])]
         paths: Vec<String>,
-
-        /// Output format
-        #[clap(short, long = "format", default_value = "html", value_parser = clap::builder::NonEmptyStringValueParser::new())]
-        format: Option<String>,
     },
     /// Load content into memory
     Load {
@@ -77,10 +77,6 @@ pub(crate) enum Command {
         #[clap(value_name = "PATH")]
         #[arg(default_values_t = [".".to_string()])]
         paths: Vec<String>,
-
-        /// Output format
-        #[clap(short, long = "format", default_value = "html", value_parser = clap::builder::NonEmptyStringValueParser::new())]
-        format: Option<String>,
     },
     /// Exit interactive mode
     #[clap(hide = true)]

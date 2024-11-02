@@ -1,7 +1,7 @@
 bin.name = "md"
-args = "--interactive --output stdout"
+args = "--interactive --output stdout --format markdown"
 stdin = """
-build --format markdown file.md
+build file.md
 exit
 """
 stdout = """

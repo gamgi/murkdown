@@ -21,6 +21,7 @@ use super::{
 
 pub async fn handle(event_rx: EventRx, config: &Config) -> Result<(), AppError> {
     let state = State::new();
+    state.load_languages(config.format.as_ref().expect("language"))?;
 
     handle_state(event_rx, config, state).await
 }
@@ -99,11 +100,10 @@ fn process_event(
                 state
                     .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
             }
-            Command::Build { ref paths, ref splits, ref format } => {
+            Command::Build { ref paths, ref splits } => {
                 let (paths, paths_parents) = get_paths(paths)?;
                 let splits = Some(splits.clone());
 
-                state.load_languages(format.as_ref().unwrap())?;
                 tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
                 state
                     .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
@@ -165,6 +165,7 @@ fn process_graph(
             let locs = state.locations.clone();
             let langs = state.languages.clone();
             let out = config.output.clone().expect("output");
+            let fmt = config.format.clone().expect("format");
 
             match vertex {
                 Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
@@ -175,7 +176,7 @@ fn process_graph(
                     tasks.push(task::preprocess(op, dep.unwrap(), asts, ops, arts, locs).boxed())
                 }
                 Operation::Compile { .. } => {
-                    tasks.push(task::compile(op, dep.unwrap(), arts, langs).boxed())
+                    tasks.push(task::compile(op, dep.unwrap(), arts, fmt.clone(), langs).boxed())
                 }
                 Operation::Write { .. } => {
                     tasks.push(task::write(op, dep.unwrap(), arts, out).boxed())
