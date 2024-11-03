@@ -11,7 +11,7 @@ use tokio::{sync, try_join};
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    let config = Config::parse();
+    let config = Config::parse().defaults();
     let (tx, rx) = sync::mpsc::unbounded_channel::<Event>();
     setup_logging(&config);
 

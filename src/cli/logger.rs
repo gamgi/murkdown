@@ -12,7 +12,7 @@ pub fn setup_logging(config: &Config) {
         1 => LevelFilter::Debug,
         _ => LevelFilter::Trace,
     };
-    let formatter = match config.progress {
+    let formatter = match config.log_format {
         "plain" => plain_formatter,
         _ => default_formatter,
     };

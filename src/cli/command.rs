@@ -22,22 +22,16 @@ pub(crate) struct Config {
     /// Output path or target
     ///
     /// [default: ./build, possible values: stdout, <PATH>]
-    #[clap(
-        short,
-        long,
-        default_value = "./build",
-        value_parser = parse_out,
-        hide_default_value = true
-    )]
-    #[clap(global = true)]
+    #[clap(short, long, value_parser = parse_out, hide_default_value = true, global = true)]
+    // NOTE: default value set in `Config::validate`
     pub output: Option<Output>,
 
-    /// Progress output format
+    /// Log format
     ///
-    /// [default: auto, possible values: auto, plain]
-    #[clap(long, default_value = "auto", value_parser = parse_progress, hide_default_value = true)]
+    /// [default: auto, possible values: auto, html, plain]
+    #[clap(long = "log", default_value = "auto", value_parser = parse_log_format, require_equals = true, hide_default_value = true)]
     #[clap(global = true)]
-    pub progress: &'static str,
+    pub log_format: &'static str,
 
     /// Increase level of verbosity
     #[clap(short, action = clap::ArgAction::Count, global = true)]
@@ -47,6 +41,7 @@ pub(crate) struct Config {
     pub command: Option<Command>,
 }
 
+// NOTE: not using `Subcommand` since we need `Parser::try_parse_from`
 #[derive(Parser, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(test, derive(Ord, PartialOrd))]
 pub(crate) enum Command {
@@ -83,6 +78,19 @@ pub(crate) enum Command {
     Exit,
 }
 
+impl Config {
+    pub fn defaults(mut self) -> Self {
+        // workaround for `default_value_ifs` issue in clap
+        match (self.log_format, self.output.as_ref()) {
+            ("html", None) => self.output = Some(Output::StdOutLog),
+            ("html", Some(Output::StdOut)) => self.output = Some(Output::StdOutLog),
+            (_, None) => self.output = Some(Output::Path(PathBuf::from("./build"))),
+            _ => {}
+        };
+        self
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, ValueEnum, PartialOrd, Ord)]
 pub(crate) enum GraphType {
     /// Dependency graph
@@ -109,7 +117,7 @@ pub async fn handle(event_tx: EventTx, config: &Config) -> Result<(), AppError> 
 
 fn parse_out(arg: &str) -> Result<Output, &'static str> {
     match arg {
-        uri if uri.starts_with("stdout") => Ok(Output::Stdout),
+        uri if uri.starts_with("stdout") => Ok(Output::StdOut),
         uri if uri.starts_with("file://") || !uri.contains("://") => {
             let path: PathBuf = arg.trim_start_matches("file://").into();
             if path.is_file() {
@@ -122,9 +130,10 @@ fn parse_out(arg: &str) -> Result<Output, &'static str> {
     }
 }
 
-fn parse_progress(arg: &str) -> Result<&'static str, &'static str> {
+fn parse_log_format(arg: &str) -> Result<&'static str, &'static str> {
     match arg {
         "auto" => Ok("auto"),
+        "html" => Ok("html"),
         "plain" => Ok("plain"),
         _ => Err("Unknown progress"),
     }

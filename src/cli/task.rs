@@ -459,7 +459,7 @@ pub async fn write(
     let content = {
         let artifacts = artifacts.lock().expect("poisoned lock");
         let result = artifacts.get(&dep).expect("no write dependency");
-        if let Output::Stdout = output {
+        if let Output::StdOut = output {
             if let Artifact::Plaintext(_, content) = result {
                 println!("{content}")
             }
@@ -489,7 +489,7 @@ pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
     };
 
     match output {
-        Output::Stdout => {}
+        Output::StdOut | Output::StdOutLog => {}
         Output::Path(root) => {
             let target = root.join(&*id);
             fs::copy(source.clone(), target.clone())

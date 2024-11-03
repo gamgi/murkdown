@@ -31,7 +31,8 @@ pub(crate) type LangMap = HashMap<String, Lang>;
 #[derive(Debug, Default, Clone)]
 pub enum Output {
     #[default]
-    Stdout,
+    StdOut,
+    StdOutLog,
     Path(PathBuf),
 }
 

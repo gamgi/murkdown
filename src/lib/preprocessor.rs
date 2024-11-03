@@ -43,7 +43,6 @@ fn preprocess_recursive<'a>(
     // Evaluate pre-yield
     lang.evaluate(&mut instructions, ctx, deps, node)?;
 
-
     match node.rule {
         Rule::Root => {
             preprocess_headers(node);
