@@ -1,6 +1,7 @@
 bin.name = "md"
 args = "--output stdout --format markdown build a.md"
 stdout = '''
+[INFO] Building 1 sources
 This file includes another
 
 > This file is included
@@ -23,5 +24,6 @@ then it includes the source of itself
 
 and that is that.
 
+[INFO] Done
 '''
 stderr = ""

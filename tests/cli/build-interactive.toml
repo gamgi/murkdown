@@ -5,8 +5,9 @@ build file.md
 exit
 """
 stdout = """
-...
+[INFO] Building 1 sources
 hello
 
+[INFO] Done
 """
 stderr = ""

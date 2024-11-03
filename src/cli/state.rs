@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::atomic::Ordering};
 
 use futures::stream::FuturesUnordered;
 use futures::{future::BoxFuture, FutureExt};
-use log::error;
+use log::{error, info};
 use murkdown::types::{ExecArtifact, ExecInput};
 use tokio::task::yield_now;
 use tokio_stream::StreamExt;
@@ -71,6 +71,7 @@ fn process_event(
     match event {
         Event::Command(Ok(cmd)) => match cmd {
             Command::Graph { ref paths, graph_type, .. } => {
+                info!(taget = "status"; "Building {} sources and {} graph", paths.len(), graph_type);
                 let (paths, paths_parents) = get_paths(paths)?;
                 let splits = None;
 
@@ -101,6 +102,7 @@ fn process_event(
                     .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
             }
             Command::Build { ref paths, ref splits } => {
+                info!(taget = "status"; "Building {} sources", paths.len());
                 let (paths, paths_parents) = get_paths(paths)?;
                 let splits = Some(splits.clone());
 
@@ -110,8 +112,12 @@ fn process_event(
             }
             Command::Exit => state.should_exit.store(true, Ordering::Relaxed),
         },
-        Event::Command(Err(_)) => todo!(),
-        Event::CommandOk => todo!(),
+        Event::Command(Err(e)) => {
+            error!(target = "status"; "Error {e}");
+        }
+        Event::CommandOk => {
+            info!(target = "status"; "Done");
+        }
         Event::TaskOk => {}
         Event::TaskError(e) => return Err(e),
     }
@@ -184,7 +190,7 @@ fn process_graph(
                 }
                 Operation::Copy { .. } => tasks.push(task::copy(op, out).boxed()),
                 Operation::Graph { .. } => tasks.push(task::graph(op, ops, arts).boxed()),
-                Operation::Finish => {}
+                Operation::Finish => tasks.push(task::finish(op).boxed()),
             }
             state.mark_op_processed(opid.clone());
         }

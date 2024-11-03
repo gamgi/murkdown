@@ -1,6 +1,7 @@
 bin.name = "md"
 args = "--output stdout --format markdown build a.md"
 stdout = """
+[INFO] Building 1 sources
 This file contains a block with an id.
 
 > First of A
@@ -15,5 +16,6 @@ And then some more blocks.
 
 
 
+[INFO] Done
 """
 stderr = ""

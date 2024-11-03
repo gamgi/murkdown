@@ -6,6 +6,7 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 
+use log::{debug, info, trace, warn};
 use murkdown::{
     ast::{Node, NodeBuilder},
     types::{Dependency, ExecArtifact, ExecInput, LibErrorPathCtx, LocationMap, URI},
@@ -33,6 +34,9 @@ pub async fn index(
     paths: Vec<PathBuf>,
     locations: Arc<Mutex<LocationMap>>,
 ) -> Result<bool, AppError> {
+    debug!("Indexing files");
+
+    let mut count = 0;
     let mut locations = locations.lock().expect("poisoned lock");
     for path in paths {
         let walker = WalkDir::new(path)
@@ -42,9 +46,12 @@ pub async fn index(
             .filter(is_file)
             .map(into_uri_path_tuple);
         for (id, path) in walker {
+            trace!("Indexed {}", id);
+            count += 1;
             locations.insert(id, path);
         }
     }
+    debug!("Indexed {count} files");
 
     Ok(false)
 }
@@ -54,6 +61,9 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
     let Operation::Gather { cmd, paths, splits: _ } = &op else {
         panic!()
     };
+    debug!("Gathering files");
+
+    let mut count = 0;
     let mut graph = operations.lock().expect("poisoned lock");
     let is_source_or_explicitly_included = |e: &DirEntry| {
         let path = e.path();
@@ -73,6 +83,9 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
 
         for (id, path) in walker {
             let id: Arc<str> = Arc::from(id.as_ref());
+            trace!("Gathered {}", id);
+
+            count += 1;
             match cmd {
                 Command::Load { .. } => {
                     if graph.get(&OpId::load(id.clone())).is_none() {
@@ -94,6 +107,8 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
             }
         }
     }
+
+    debug!("Gathered {count} files");
 
     Ok(false)
 }
@@ -119,11 +134,20 @@ pub async fn exec(
             match artifacts.get(uri) {
                 Some(Artifact::Plaintext(_, content)) => Some(Arc::from(content.as_ref())),
                 Some(_) => todo!(),
-                None => None,
+                None => {
+                    warn!("Execution input {} not found", uri);
+                    None
+                }
             }
         }
         None => None,
     };
+
+    if input.is_some() {
+        debug!("Executing {cmd} with input");
+    } else {
+        debug!("Executing {cmd}");
+    }
 
     let mut child = spawn_command(program, args)?;
     write_command(&mut child, input.as_deref(), program).await?;
@@ -141,7 +165,10 @@ pub async fn exec(
     };
     let stderr_artifact = match String::from_utf8(result.stderr) {
         Ok(v) => Artifact::Plaintext("text/plain".to_string(), v),
-        Err(v) => Artifact::Binary("application/octet-stream".to_string(), v.into_bytes()),
+        Err(v) => {
+            warn!("Execution {cmd} stderr is binary");
+            Artifact::Binary("application/octet-stream".to_string(), v.into_bytes())
+        }
     };
 
     let main_artifact = match artifact {
@@ -211,9 +238,10 @@ pub async fn load(
     artifacts: Arc<Mutex<ArtifactMap>>,
 ) -> Result<bool, AppError> {
     let uri = op.uri();
-    let Operation::Load { path, .. } = &op else {
+    let Operation::Load { id, path } = &op else {
         unreachable!()
     };
+    debug!("Loading {id}");
     let artifact = match tokio::fs::read_to_string(path).await {
         Ok(contents) => Artifact::Plaintext("text/plain".to_string(), contents),
         Err(_) => Artifact::Binary(
@@ -256,6 +284,7 @@ pub async fn parse(
     let Operation::Parse { id } = &op else {
         unreachable!()
     };
+    debug!("Parsing {id}");
     let mut artifacts = artifacts.lock().expect("poisoned lock");
     let content = artifacts.get(&dep).expect("no parse dependency");
 
@@ -285,6 +314,7 @@ pub async fn preprocess(
     let Operation::Preprocess { ref id } = op else {
         unreachable!()
     };
+    debug!("Preprocessing {id}");
     let mut artifacts = artifacts.lock().expect("poisoned lock");
     let ast = artifacts.get(&dep).expect("no preprocess dependency");
     let mut graph = operations.lock().expect("poisoned lock");
@@ -313,6 +343,7 @@ pub async fn preprocess(
             let weak = Arc::downgrade(arc);
             artifacts.insert(uri, Artifact::AstPointer(weak));
 
+            debug!("Preprocessing {id} yielded {} dependencies", deps.len());
             let (uri_deps, exec_deps): (Vec<_>, Vec<_>) = deps
                 .into_iter()
                 .partition(|d| matches!(d, Dependency::URI(_, _)));
@@ -421,9 +452,10 @@ pub async fn compile(
     artifacts: Arc<Mutex<ArtifactMap>>,
     languages: Arc<OnceLock<LangMap>>,
 ) -> Result<bool, AppError> {
-    let Operation::Compile { .. } = op else {
+    let Operation::Compile { ref id } = op else {
         unreachable!()
     };
+    debug!("Compiling {id}");
     let mut artifacts = artifacts.lock().expect("poisoned lock");
     let ast = artifacts.get(&dep).expect("no compile dependency");
     let lang = languages.get().expect("languages not loaded").get(&format);
@@ -459,12 +491,22 @@ pub async fn write(
     let content = {
         let artifacts = artifacts.lock().expect("poisoned lock");
         let result = artifacts.get(&dep).expect("no write dependency");
-        if let Output::StdOut = output {
-            if let Artifact::Plaintext(_, content) = result {
-                println!("{content}")
-            }
-            return Ok(false);
+        if let Artifact::Plaintext(_, content) = result {
+            match output {
+                Output::StdOut => {
+                    debug!("Writing {id} to stdout");
+                    println!("{content}");
+                    return Ok(false);
+                }
+                Output::StdOutLog => {
+                    debug!("Writing {id} to stdout");
+                    info!(target = *id; "{}", content);
+                    return Ok(false);
+                }
+                _ => {}
+            };
         }
+
         match result {
             Artifact::Plaintext(_, content) => content.as_bytes().to_owned(),
             Artifact::Binary(_, content) => content.to_owned(),
@@ -474,6 +516,7 @@ pub async fn write(
 
     if let Output::Path(root) = output {
         let target = root.join(&*id);
+        debug!("Writing {id} to {}", target.display());
         fs::write(&target, content)
             .await
             .map_err(|err| AppError::write_error(err, target))?;
@@ -483,15 +526,19 @@ pub async fn write(
 }
 
 /// Copy artifact to target
+// TODO should the output come in op instead?
 pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
     let Operation::Copy { id, path: source } = op else {
         unreachable!()
     };
 
     match output {
-        Output::StdOut | Output::StdOutLog => {}
+        Output::StdOut | Output::StdOutLog => {
+            debug!("Copying of {id} skipped");
+        }
         Output::Path(root) => {
             let target = root.join(&*id);
+            debug!("Copying {id} to {}", target.display());
             fs::copy(source.clone(), target.clone())
                 .await
                 .map_err(|err| AppError::copy_error(err, source, target))?;
@@ -510,6 +557,7 @@ pub async fn graph(
     let Operation::Graph { graph_type: GraphType::Dependencies } = op else {
         unreachable!()
     };
+    debug!("Graphing");
     let graph = operations.lock().expect("poisoned lock");
     let mut cards = String::from("@startuml\nskinparam defaultTextAlignment center\n'nodes\n");
     let mut deps = String::from("'dependencies\n");
@@ -541,6 +589,11 @@ pub async fn graph(
         Artifact::Plaintext("text/plantuml".to_string(), result),
     );
 
+    Ok(false)
+}
+
+/// Finish operations
+pub async fn finish(_: Operation) -> Result<bool, AppError> {
     Ok(true)
 }
 
