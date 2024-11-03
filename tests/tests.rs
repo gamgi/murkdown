@@ -7,3 +7,8 @@ fn cli_tests() {
 fn markdown_tests() {
     trycmd::TestCases::new().case("tests/markdown/*.toml");
 }
+
+#[test]
+fn html_tests() {
+    trycmd::TestCases::new().case("tests/html/*.toml");
+}

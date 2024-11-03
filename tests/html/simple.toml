@@ -1,0 +1,4 @@
+bin.name = "md"
+args = "--output . --format html build file.md"
+stderr = '''
+'''

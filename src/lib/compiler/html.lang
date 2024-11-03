@@ -1,0 +1,79 @@
+PREPROCESS RULES:
+/* section */
+[LIST] [SEC...]$
+  NOOP
+
+[SEC...]$
+  IS PARAGRAPHABLE
+
+COMPILE RULES:
+/* root */
+^[...]$
+  PUSH join "\n"
+
+/* section */
+[SEC...]$
+  NOOP
+
+/* heading block */
+[...]( [SEC...] [...HEADING...]){3}$
+  SET prefix "<h2>"
+  SET suffix "</h2>"
+  YIELD
+  POP prefix
+  POP suffix
+
+[...]( [SEC...] [...HEADING...]){2}$
+  SET prefix "<h2>"
+  SET suffix "</h2>"
+  YIELD
+  POP prefix
+  POP suffix
+
+[...]( [SEC...] [...HEADING...]){1}$
+  PUSH prefix "<h1>"
+  PUSH suffix "</h1>"
+  YIELD
+  POP prefix
+  POP suffix
+
+/* list */
+[LIST]$
+  PUSH indent "  "
+  WRITE "<ul>\n"
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITE indent
+  WRITE "</ul>"
+
+[LIST] [SEC...]$
+  YIELD
+
+[LIST] [SEC...] LINE$
+  PUSH prefix "<li>"
+  PUSH suffix "</li>"
+  WRITEALL indent
+  WRITEALL prefix
+  WRITE "\v"
+  WRITEALL suffix
+  POP prefix
+  POP suffix
+
+/* paragraph */
+[PAR...]$
+  WRITE "<p>\n"
+  WRITE indent
+  PUSH indent "  "
+  YIELD
+  POP indent
+  WRITE "\n"
+  WRITE indent
+  WRITE "</p>"
+
+/* line */
+LINE$
+  WRITEALL indent
+  WRITEALL prefix
+  WRITE "\v"
+  WRITEALL suffix
