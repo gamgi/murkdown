@@ -43,14 +43,6 @@ fn preprocess_recursive<'a>(
     // Evaluate pre-yield
     lang.evaluate(&mut instructions, ctx, deps, node)?;
 
-    if let Some(children) = node.children.as_mut() {
-        for child in children.iter_mut() {
-            preprocess_recursive(child, ctx, asts, locs, context, deps, lang, &path)?;
-        }
-    }
-
-    // Evaluate post-yield
-    lang.evaluate(&mut instructions, &mut *ctx, deps, node)?;
 
     match node.rule {
         Rule::Root => {
@@ -68,6 +60,19 @@ fn preprocess_recursive<'a>(
         }
         _ => {}
     }
+
+    if node.children.is_some() {
+        // NOTE: path may have changed (eg. new headers)
+        let path = node.build_path(base_path);
+
+        let children = node.children.as_mut().expect("is some");
+        for child in children.iter_mut() {
+            preprocess_recursive(child, ctx, asts, locs, context, deps, lang, &path)?;
+        }
+    }
+
+    // Evaluate post-yield
+    lang.evaluate(&mut instructions, &mut *ctx, deps, node)?;
 
     Ok(())
 }

@@ -173,7 +173,10 @@ async fn test_preprocess_adds_exec_input_dependency() {
     result.sort();
     assert_eq!(
         result,
-        [(&OpId::preprocess("foo"), vec![OpId::exec("run")]),]
+        vec![
+            (&OpId::exec("run"), vec![]),
+            (&OpId::preprocess("foo"), vec![OpId::exec("run")])
+        ]
     );
 }
 
