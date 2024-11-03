@@ -21,8 +21,7 @@ pub(crate) struct LangRule {
     path: String,
     regex: Regex,
     pub instructions: Vec<LangInstr>,
-    #[allow(unused)]
-    is_composable: bool,
+    pub settings: LangSettings,
 }
 
 impl LangRule {
@@ -31,7 +30,7 @@ impl LangRule {
     }
 }
 
-/// Compiler instruction
+/// Language rule instruction
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub(crate) struct LangInstr {
     pub op: String,
@@ -47,6 +46,14 @@ impl Display for LangInstr {
         let args = self.args.iter().map(|a| a.to_string()).collect::<Vec<_>>();
         write!(f, "{}", args.join(" "))
     }
+}
+
+/// Language rule settings
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
+pub struct LangSettings {
+    #[allow(unused)]
+    pub is_composable: bool,
+    pub is_paragraphable: bool,
 }
 
 /// Context for evaluating a rule
@@ -95,9 +102,15 @@ fn parse_recursive<'a>(
         if pair.as_rule() == Rule::Rule {
             let mut pairs = pair.into_inner().peekable();
             let path = pairs.next().unwrap().as_str().to_string();
-            let is_composable = match pairs.peek().unwrap().as_rule() {
-                Rule::Settings => pairs.next().unwrap().as_str().contains("COMPOSABLE"),
-                _ => false,
+            let (is_composable, is_paragraphable) = match pairs.peek().unwrap().as_rule() {
+                Rule::Settings => {
+                    let settings = pairs.next().unwrap().as_str();
+                    (
+                        settings.contains("COMPOSABLE"),
+                        settings.contains("PARAGRAPHABLE"),
+                    )
+                }
+                _ => (false, false),
             };
 
             let regex = Regex::new(
@@ -113,7 +126,8 @@ fn parse_recursive<'a>(
                 let args = pairs.map(Arg::try_from).collect::<Result<_, _>>()?;
                 instructions.push(LangInstr { op, args });
             }
-            result.push(LangRule { path, regex, instructions, is_composable });
+            let settings = LangSettings { is_composable, is_paragraphable };
+            result.push(LangRule { path, regex, instructions, settings });
         }
     }
     Ok(result)
@@ -134,7 +148,7 @@ mod tests {
             r#"
             COMPILE RULES:
             [rule...]
-              IS COMPOSABLE
+              IS COMPOSABLE PARAGRAPHABLE
               PUSH foo "bar"
             "#
         };
@@ -150,11 +164,14 @@ mod tests {
                 op: "PUSH".into(),
                 args: vec![StackRef("foo".into()), Str("bar".into())],
             }],
-            is_composable: true,
+            settings: LangSettings {
+                is_composable: true,
+                is_paragraphable: true,
+            },
         };
         assert_eq!(rule.path, expected.path);
         assert_eq!(rule.instructions, expected.instructions);
         assert_eq!(rule.regex.as_str(), expected.regex.as_str());
-        assert_eq!(rule.is_composable, expected.is_composable);
+        assert_eq!(rule.settings, expected.settings);
     }
 }

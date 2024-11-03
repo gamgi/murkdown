@@ -18,7 +18,7 @@ pub type URI = String;
 /// Map from URI to AST node
 pub type AstMap = HashMap<String, Arc<Mutex<Node>>>;
 
-/// Map from rule kind to list of rules
+/// Map from processing stage (eg. preprocess) to list of rules
 pub(crate) type RuleMap = HashMap<&'static str, Vec<LangRule>>;
 
 /// Map from Resource path (eg. foo.fd) to location on disk
