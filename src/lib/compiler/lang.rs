@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use super::{
-    rule::{self, Context, LangInstr},
+    rule::{self, Context, LangInstr, LangSettings},
     rule_argument::Arg,
 };
 use crate::{
@@ -27,11 +27,11 @@ impl Lang {
         &self,
         stage: &'static str,
         path: &str,
-    ) -> impl Iterator<Item = &LangInstr> {
+    ) -> (impl Iterator<Item = &LangInstr>, LangSettings) {
         let rules = self.rules.get(stage);
         match rules.unwrap().iter().find(|r| r.matches(path)) {
-            Some(rule) => rule.instructions.iter(),
-            None => (&[] as &[LangInstr]).iter(),
+            Some(rule) => (rule.instructions.iter(), rule.settings),
+            None => ((&[] as &[LangInstr]).iter(), LangSettings::default()),
         }
     }
 
@@ -195,6 +195,27 @@ mod tests {
     use crate::ast::NodeBuilder;
 
     #[test]
+    fn test_get_instructions() {
+        let input = indoc! {
+            r#"
+            PREPROCESS RULES:
+            [SEC...]$
+              IS PARAGRAPHABLE
+              NOOP
+            "#
+        };
+        let lang = Lang::new(input).unwrap();
+
+        let (instructions, settings) = lang.get_instructions("PREPROCESS", "[SEC]");
+        let instructions = instructions.collect::<Vec<&LangInstr>>();
+        assert_eq!(
+            instructions,
+            vec![&LangInstr { op: "NOOP".into(), args: vec![] }]
+        );
+        assert!(settings.is_paragraphable);
+    }
+
+    #[test]
     fn test_evaluate() {
         let input = indoc! {
             r#"
@@ -210,7 +231,7 @@ mod tests {
         let lang = Lang::new(input).unwrap();
         let mut node = Node::default();
 
-        let mut instructions = lang.get_instructions("COMPILE", "[rule]");
+        let (mut instructions, _) = lang.get_instructions("COMPILE", "[rule]");
         let mut ctx = Context::default();
 
         let value = lang
@@ -238,7 +259,7 @@ mod tests {
             .add_prop(("word".into(), "world".into()))
             .done();
 
-        let mut instructions = lang.get_instructions("COMPILE", "[rule]");
+        let (mut instructions, _) = lang.get_instructions("COMPILE", "[rule]");
         let mut ctx = Context::default();
 
         let value = lang

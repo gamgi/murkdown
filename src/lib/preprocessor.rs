@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::ast::{Node, NodeBuilder};
 use crate::compiler::lang::Lang;
-use crate::compiler::rule::Context;
+use crate::compiler::rule::{Context, LangSettings};
 use crate::parser::Rule;
 use crate::types::{AstMap, Dependency, LibError, LocationMap, Pointer};
 
@@ -38,7 +38,7 @@ fn preprocess_recursive<'a>(
     base_path: &str,
 ) -> Result<(), LibError> {
     let path = node.build_path(base_path);
-    let mut instructions = lang.get_instructions("PREPROCESS", &path);
+    let (mut instructions, settings) = lang.get_instructions("PREPROCESS", &path);
 
     // Evaluate pre-yield
     lang.evaluate(&mut instructions, ctx, deps, node)?;
@@ -62,6 +62,9 @@ fn preprocess_recursive<'a>(
             preprocess_headers(node);
             preprocess_ids(node, asts, context);
             preprocess_includes(node, asts, locs, context, deps);
+        }
+        Rule::Section => {
+            preprocess_paragraphs(node, &settings);
         }
         _ => {}
     }
@@ -188,6 +191,73 @@ fn preprocess_includes(
     }
 }
 
+/// Join adjacent lines in sections into paragraphs
+fn preprocess_paragraphs(node: &mut Node, settings: &LangSettings) {
+    if !settings.is_paragraphable {
+        return;
+    }
+
+    if node.headers.is_none() {
+        if let Some(children) = node.children.take() {
+            let res = Vec::<Node>::new();
+            let new_children = children.into_iter().fold(res, |mut res, mut right| {
+                if let Some(left) = res.last_mut() {
+                    if matches!(left.rule, Rule::Line | Rule::Paragraph)
+                        && matches!(right.rule, Rule::Line)
+                    {
+                        match (left.value.as_deref(), right.value.as_deref()) {
+                            (Some(_), Some(r)) => match left.rule {
+                                Rule::Line => {
+                                    let l = left.value.as_ref().unwrap();
+                                    let value = Arc::from(format!("{l}\n{r}"));
+                                    let new = std::mem::take(left);
+                                    left.value = Some(value);
+                                    left.rule = Rule::Paragraph;
+                                    left.children = Some(vec![new, right]);
+                                }
+                                Rule::Paragraph => {
+                                    let l = left.value.as_ref().unwrap();
+                                    let value = Arc::from(format!("{l}\n{r}"));
+                                    left.value = Some(value);
+                                    left.children.as_mut().unwrap().push(right);
+                                }
+                                _ => unreachable!(),
+                            },
+                            _ => res.push(right),
+                        }
+                    } else if matches!(left.rule, Rule::Line) {
+                        // turn left into paragraph
+                        let l = left.value.as_ref().unwrap();
+                        let value = Arc::from(format!("{l}"));
+                        let new = std::mem::take(left);
+                        left.value = Some(value);
+                        left.rule = Rule::Paragraph;
+                        left.children = Some(vec![new]);
+
+                        res.push(right);
+                    } else if matches!(right.rule, Rule::Line) {
+                        // turn right into paragraph
+                        let r = right.value.as_ref().unwrap();
+                        let value = Arc::from(format!("{r}"));
+                        let new = std::mem::take(&mut right);
+                        right.value = Some(value);
+                        right.rule = Rule::Paragraph;
+                        right.children = Some(vec![new]);
+
+                        res.push(right);
+                    } else {
+                        res.push(right);
+                    }
+                } else {
+                    res.push(right);
+                }
+                res
+            });
+            node.children = Some(new_children);
+        }
+    }
+}
+
 fn get_ellipsis_node_recursive(nodes: &mut [Node]) -> Option<&mut Node> {
     for node in nodes.iter_mut() {
         if node.pointer.is_some() || node.find_prop("src").is_some() {
@@ -260,6 +330,7 @@ where
 mod tests {
     use std::path::PathBuf;
 
+    use indoc::indoc;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -404,6 +475,46 @@ mod tests {
         let block = section.children.as_ref().unwrap().first().unwrap();
 
         assert_eq!(block.props, Some(vec![("src".into(), "exec:date".into())]));
+    }
+
+    #[test]
+    fn test_preprocess_builds_paragraphs() {
+        let rules = indoc! {
+            r#"
+            PREPROCESS RULES:
+            [SEC...]$
+              IS PARAGRAPHABLE
+            "#
+        };
+        let mut asts = AstMap::default();
+        let mut node = NodeBuilder::root()
+            .add_section(vec![
+                Node::new_line("foo"),
+                Node::new_line("bar"),
+                Node::new_line("baz"),
+                Node::ellipsis(),
+                Node::new_line("foo"),
+                Node::new_line("bar"),
+                Node::ellipsis(),
+                Node::new_line("foo"),
+            ])
+            .done();
+        let mut locs = LocationMap::default();
+        let lang = Lang::new(rules).ok();
+        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
+
+        let section = node.children.as_ref().unwrap().first().unwrap();
+        let children = section.children.as_ref().unwrap();
+        assert_eq!(
+            children,
+            &vec![
+                Node::paragraph(&["foo", "bar", "baz"]),
+                Node::ellipsis(),
+                Node::paragraph(&["foo", "bar"]),
+                Node::ellipsis(),
+                Node::paragraph(&["foo"]),
+            ]
+        );
     }
 }
 

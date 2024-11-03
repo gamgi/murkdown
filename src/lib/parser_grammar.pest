@@ -46,4 +46,5 @@ Value           =  { ("\\\"" | !"\"" ~ ANY_LETTER)* }
 
 // Misc
 Pointer         = _{ "dummy" }
+Paragraph       = _{ "dummy" }
 Section         = _{ "dummy" }

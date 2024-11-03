@@ -40,6 +40,18 @@ impl Node {
             .unwrap()
     }
 
+    pub fn paragraph(values: &[&str]) -> Self {
+        NodeBuilder::new(Rule::Paragraph)
+            .value(Arc::from(values.join("\n")))
+            .children(values.iter().map(|v| Node::new_line(v)).collect())
+            .build()
+            .unwrap()
+    }
+
+    pub fn ellipsis() -> Self {
+        NodeBuilder::new(Rule::Ellipsis).build().unwrap()
+    }
+
     pub fn add_prop(&mut self, key: &str, value: Arc<str>) {
         let entry = (Arc::from(key), value);
         match self.props.as_mut() {
@@ -70,6 +82,7 @@ impl Node {
             Rule::Line => write!(&mut result, "LINE"),
             Rule::Section if !headers.is_empty() => write!(&mut result, "[SEC {headers}]"),
             Rule::Section => write!(&mut result, "[SEC]"),
+            Rule::Paragraph => write!(&mut result, "[PAR]"),
             _ => write!(&mut result, "?"),
         };
         result

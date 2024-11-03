@@ -37,7 +37,7 @@ fn compile_recusive<'a>(
     while let Some(node) = nodes.next() {
         let path = node.build_path(base_path);
 
-        let mut instructions = lang.get_instructions("COMPILE", &path);
+        let (mut instructions, _) = lang.get_instructions("COMPILE", &path);
 
         // Evaluate pre-yield
         let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node)?;
