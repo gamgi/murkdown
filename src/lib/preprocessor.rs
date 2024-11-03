@@ -16,12 +16,13 @@ pub fn preprocess(
     asts: &mut AstMap,
     locs: &LocationMap,
     context: &str,
+    lang: Option<&Lang>,
 ) -> Result<HashSet<Dependency>, LibError> {
     let mut deps = HashSet::new();
-    let lang = Lang::new(include_str!("compiler/markdown.lang")).unwrap();
+    let lang = lang.expect("language");
     let mut ctx = Context::default();
 
-    preprocess_recursive(node, &mut ctx, asts, locs, context, &mut deps, &lang, "")?;
+    preprocess_recursive(node, &mut ctx, asts, locs, context, &mut deps, lang, "")?;
     Ok(deps)
 }
 
@@ -274,7 +275,8 @@ mod tests {
             .done();
         let mut locs = LocationMap::default();
         locs.insert("bar".to_string(), PathBuf::from("something.txt"));
-        preprocess(&mut node, &mut asts, &mut locs, "").unwrap();
+        let lang = Some(Lang::default());
+        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
@@ -295,8 +297,9 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
+        let lang = Some(Lang::default());
 
-        preprocess(&mut node, &mut asts, &mut locs, "").unwrap();
+        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section
@@ -320,8 +323,9 @@ mod tests {
             .done();
         let mut locs = LocationMap::default();
         locs.insert("bar".to_string(), PathBuf::from("something.txt"));
+        let lang = Some(Lang::default());
 
-        preprocess(&mut node, &mut asts, &mut locs, "").unwrap();
+        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
 
         let ast_keys = asts.keys().collect::<Vec<_>>();
         assert_eq!(ast_keys, vec!["parse:bar"]);
@@ -336,7 +340,8 @@ mod tests {
 
         let mut node = NodeBuilder::root().children(vec![block.clone()]).done();
         let mut locs = LocationMap::default();
-        preprocess(&mut node, &mut asts, &mut locs, "foo").unwrap();
+        let lang = Some(Lang::default());
+        preprocess(&mut node, &mut asts, &mut locs, "foo", lang.as_ref()).unwrap();
 
         let new_block = node.children.as_ref().unwrap().first().unwrap();
         assert!(new_block.pointer.is_some());
@@ -359,9 +364,10 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
+        let lang = Some(Lang::default());
         locs.insert("file.md".to_string(), PathBuf::from("file.md"));
         locs.insert("other.md".to_string(), PathBuf::from("other.md"));
-        preprocess(&mut node, &mut asts, &mut locs, "file.md").unwrap();
+        preprocess(&mut node, &mut asts, &mut locs, "file.md", lang.as_ref()).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
@@ -377,8 +383,9 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
+        let lang = Some(Lang::default());
 
-        let deps = preprocess(&mut node, &mut asts, &mut locs, "").unwrap();
+        let deps = preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
 
         assert_eq!(
             deps,

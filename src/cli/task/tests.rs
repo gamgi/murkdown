@@ -55,16 +55,18 @@ async fn test_preprocess_adds_src_operations() {
         .done();
     let op = Operation::Preprocess { id: "foo".into() };
     let dep = op.uri();
-    let ctx = State::new();
+    let ctx = State::new_loaded("markdown");
     ctx.insert_location("bar", PathBuf::from("file.txt"));
     ctx.insert_artifact(&dep, Artifact::Ast(node));
 
     preprocess(
         op,
+        "markdown".to_string(),
         dep,
         ctx.asts,
         ctx.operations.clone(),
         ctx.artifacts,
+        ctx.languages,
         ctx.locations,
     )
     .await
@@ -110,16 +112,18 @@ async fn test_preprocess_adds_ref_operations() {
         .done();
     let op = Operation::Preprocess { id: "foo".into() };
     let dep = op.uri();
-    let ctx = State::new();
+    let ctx = State::new_loaded("markdown");
     ctx.insert_location("bar", PathBuf::from("file.txt"));
     ctx.insert_artifact(&dep, Artifact::Ast(node));
 
     preprocess(
         op,
+        "markdown".to_string(),
         dep,
         ctx.asts,
         ctx.operations.clone(),
         ctx.artifacts,
+        ctx.languages,
         ctx.locations,
     )
     .await
@@ -141,17 +145,19 @@ async fn test_preprocess_adds_exec_input_dependency() {
         .done();
     let op = Operation::Preprocess { id: "foo".into() };
     let dep = op.uri();
-    let ctx = State::new();
+    let ctx = State::new_loaded("markdown");
     ctx.insert_op(op.clone());
     ctx.insert_location("bar", PathBuf::from("file.txt"));
     ctx.insert_artifact(&dep, Artifact::Ast(node));
 
     preprocess(
         op,
+        "markdown".to_string(),
         dep,
         ctx.asts,
         ctx.operations.clone(),
         ctx.artifacts,
+        ctx.languages,
         ctx.locations,
     )
     .await

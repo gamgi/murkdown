@@ -41,6 +41,13 @@ impl State {
     }
 
     #[cfg(test)]
+    pub fn new_loaded(format: &str) -> Self {
+        let ctx = Self::new();
+        ctx.load_languages(format).expect("valid format");
+        ctx
+    }
+
+    #[cfg(test)]
     pub fn insert_op(&self, op: Operation) -> OpId {
         let mut ops = self.operations.lock().expect("poisoned lock");
         ops.insert_node(op)

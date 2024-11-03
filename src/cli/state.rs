@@ -172,11 +172,12 @@ fn process_graph(
                 Operation::Exec { .. } => tasks.push(task::exec(op, asts, arts).boxed()),
                 Operation::Load { .. } => tasks.push(task::load(op, asts, arts).boxed()),
                 Operation::Parse { .. } => tasks.push(task::parse(op, dep.unwrap(), arts).boxed()),
-                Operation::Preprocess { .. } => {
-                    tasks.push(task::preprocess(op, dep.unwrap(), asts, ops, arts, locs).boxed())
-                }
+                Operation::Preprocess { .. } => tasks.push(
+                    task::preprocess(op, fmt.clone(), dep.unwrap(), asts, ops, arts, langs, locs)
+                        .boxed(),
+                ),
                 Operation::Compile { .. } => {
-                    tasks.push(task::compile(op, dep.unwrap(), arts, fmt.clone(), langs).boxed())
+                    tasks.push(task::compile(op, fmt.clone(), dep.unwrap(), arts, langs).boxed())
                 }
                 Operation::Write { .. } => {
                     tasks.push(task::write(op, dep.unwrap(), arts, out).boxed())

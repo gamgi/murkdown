@@ -271,12 +271,15 @@ pub async fn parse(
 }
 
 /// Preprocess AST and schedule dependencies
+#[allow(clippy::too_many_arguments)]
 pub async fn preprocess(
     op: Operation,
+    format: String,
     dep: URI,
     asts: Arc<Mutex<AstMap>>,
     operations: Arc<Mutex<OpGraph>>,
     artifacts: Arc<Mutex<ArtifactMap>>,
+    languages: Arc<OnceLock<LangMap>>,
     locations: Arc<Mutex<LocationMap>>,
 ) -> Result<bool, AppError> {
     let Operation::Preprocess { ref id } = op else {
@@ -293,7 +296,8 @@ pub async fn preprocess(
             let uri = op.uri();
 
             let locs = locations.lock().expect("poisoned lock");
-            let deps = preprocessor::preprocess(&mut node, &mut asts, &locs, id)?;
+            let lang = languages.get().expect("languages not loaded").get(&format);
+            let deps = preprocessor::preprocess(&mut node, &mut asts, &locs, id, lang)?;
 
             // upsert preprocessed node to ast
             let arc = match asts.entry(uri.to_string()) {
@@ -412,9 +416,9 @@ pub async fn preprocess(
 /// Compile AST to string
 pub async fn compile(
     op: Operation,
+    format: String,
     dep: URI,
     artifacts: Arc<Mutex<ArtifactMap>>,
-    format: String,
     languages: Arc<OnceLock<LangMap>>,
 ) -> Result<bool, AppError> {
     let Operation::Compile { .. } = op else {
