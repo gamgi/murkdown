@@ -45,7 +45,7 @@ impl TryFrom<Pair<'_, Rule>> for Arg {
             Rule::File => Ok(Arg::File(pair.as_str().to_string())),
             Rule::URIPath => Ok(Arg::URIPath(pair.as_str().to_string())),
             Rule::MediaType => Ok(Arg::MediaType(pair.as_str().to_string())),
-            _ => return Err(LibError::invalid_rule_argument(pair.as_str())),
+            _ => Err(LibError::invalid_rule_argument(pair.as_str())),
         }
     }
 }

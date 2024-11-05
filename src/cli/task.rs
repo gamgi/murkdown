@@ -29,7 +29,8 @@ use crate::cli::{
     command::{Command, GraphType},
     types::Source,
     utils::{
-        into_id_source_tuple, into_uri_path_tuple, spawn_command, wait_command, write_command,
+        into_id_source_tuple, into_uri_path_tuple, is_sensible, spawn_command, wait_command,
+        write_command,
     },
 };
 
@@ -45,7 +46,7 @@ pub async fn index(
     for path in paths {
         let walker = WalkDir::new(path)
             .into_iter()
-            .filter_entry(is_visible)
+            .filter_entry(|e| is_visible(e) && is_sensible(e))
             .filter_map(Result::ok)
             .filter(is_file)
             .map(into_uri_path_tuple);
@@ -147,6 +148,7 @@ pub async fn exec(
     let (program, args) = cmd.split_once(' ').unwrap_or((cmd, ""));
 
     let input = match input {
+        Some(ExecInput::String(content)) if content.is_empty() => None,
         Some(ExecInput::String(content)) => Some(Arc::from(content.as_ref())),
         Some(ExecInput::URI(uri)) => {
             let artifacts = artifacts.lock().expect("poisoned lock");
@@ -569,7 +571,6 @@ pub async fn write(
 }
 
 /// Copy artifact to target
-// TODO should the output come in op instead?
 pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
     let Operation::Copy { id, source } = op else {
         unreachable!()

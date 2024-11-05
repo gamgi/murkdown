@@ -20,6 +20,14 @@ pub fn is_visible(entry: &DirEntry) -> bool {
         .unwrap_or(true)
 }
 
+pub fn is_sensible(entry: &DirEntry) -> bool {
+    entry
+        .path()
+        .to_str()
+        .map(|s| !s.starts_with("./build/") && !s.starts_with("./target/"))
+        .unwrap_or(true)
+}
+
 pub fn is_file(entry: &DirEntry) -> bool {
     entry.path().is_file()
 }

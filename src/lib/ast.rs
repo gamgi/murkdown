@@ -40,6 +40,7 @@ impl Node {
             .unwrap()
     }
 
+    #[cfg(test)]
     pub fn paragraph(values: &[&str]) -> Self {
         NodeBuilder::new(Rule::Paragraph)
             .value(Arc::from(values.join("\n")))
