@@ -4,7 +4,7 @@ use murkdown::ast::NodeBuilder;
 use murkdown::types::ExecArtifact;
 
 use crate::cli::command::GraphType;
-use crate::cli::task::{exec, graph, index, preprocess};
+use crate::cli::task::{exec, gather, graph, index, preprocess, Command};
 use crate::cli::types::Source;
 use crate::cli::{
     artifact::Artifact,
@@ -30,6 +30,36 @@ async fn test_index_strips_relative_path_and_duplicates() {
     let result_keys = locs.keys().collect::<Vec<_>>();
 
     assert_eq!(result_keys, [&"src/cli/task/tests.rs".to_string()]);
+}
+
+#[tokio::test]
+async fn test_gather_adds_operationss_for_command() {
+    let paths = vec!["data:,Hello%20World!#foo".to_string()];
+    let sources = paths.clone().into_iter().map(Source::Url).collect();
+    let op = Operation::Gather {
+        cmd: Command::Build { paths, splits: vec![] },
+        sources,
+        splits: Some(vec![]),
+    };
+    let ctx = State::new_loaded("markdown");
+    gather(op, ctx.operations.clone()).await.unwrap();
+
+    let graph = ctx.operations.lock().unwrap();
+    let mut result_keys = graph.iter().map(|(v, _, _)| v).collect::<Vec<_>>();
+    result_keys.sort();
+
+    assert_eq!(
+        result_keys,
+        [
+            &OpId::gather(),
+            &OpId::load("foo"),
+            &OpId::parse("foo"),
+            &OpId::preprocess("foo"),
+            &OpId::compile("foo"),
+            &OpId::write("foo"),
+            &OpId::finish()
+        ]
+    );
 }
 
 #[tokio::test]

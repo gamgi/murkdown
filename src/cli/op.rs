@@ -133,6 +133,11 @@ impl OpId {
     }
 
     #[cfg(test)]
+    pub fn compile(id: impl Into<Arc<str>>) -> Self {
+        Self(Op::Compile, id.into())
+    }
+
+    #[cfg(test)]
     pub fn copy(id: impl Into<Arc<str>>) -> Self {
         Self(Op::Copy, id.into())
     }
