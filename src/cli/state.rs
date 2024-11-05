@@ -1,5 +1,5 @@
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::{path::PathBuf, sync::atomic::Ordering};
 
 use futures::stream::FuturesUnordered;
 use futures::{future::BoxFuture, FutureExt};
@@ -13,6 +13,7 @@ use super::graph_sorter::grouped_topological_sort;
 use super::op::{OpId, Operation};
 use super::state_context::State;
 use super::task;
+use super::types::Source;
 use super::utils::parents;
 use super::{
     command::Config,
@@ -61,18 +62,20 @@ fn process_event(
     tasks: &mut FuturesUnordered<BoxFuture<'static, Result<bool, AppError>>>,
     state: &State,
 ) -> Result<(), AppError> {
-    let get_paths = |paths: &[String]| {
-        let paths = paths.iter().map(PathBuf::from).collect::<Vec<_>>();
-        let paths_parents = parents(paths.clone().into_iter())?
+    let get_sources_and_parents = |sources: &[String]| {
+        let sources = sources.iter().map(Source::from).collect::<Vec<_>>();
+        let sources_paths = sources
+            .clone()
             .into_iter()
-            .collect::<Vec<_>>();
-        Ok::<_, AppError>((paths, paths_parents))
+            .filter_map(|s| s.try_into().ok());
+        let paths_parents = parents(sources_paths)?.into_iter().collect::<Vec<_>>();
+        Ok::<_, AppError>((sources, paths_parents))
     };
     match event {
         Event::Command(Ok(cmd)) => match cmd {
             Command::Graph { ref paths, graph_type, .. } => {
-                info!(taget = "status"; "Building {} sources and {} graph", paths.len(), graph_type);
-                let (paths, paths_parents) = get_paths(paths)?;
+                info!(target = "status"; "Building {} sources and {} graph", paths.len(), graph_type);
+                let (sources, paths_parents) = get_sources_and_parents(paths)?;
                 let splits = None;
 
                 tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
@@ -81,7 +84,7 @@ fn process_event(
 
                 // NOTE: tasks are scheduled here because there should only be one graph task
                 state.insert_op_chain([
-                    Operation::Gather { cmd, paths, splits },
+                    Operation::Gather { cmd, sources, splits },
                     Operation::Finish,
                     Operation::Graph { graph_type },
                     Operation::Exec {
@@ -94,21 +97,25 @@ fn process_event(
                 ]);
             }
             Command::Load { ref paths, .. } => {
-                let (paths, paths_parents) = get_paths(paths)?;
+                let (sources, parents) = get_sources_and_parents(paths)?;
                 let splits = None;
 
-                tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
-                state
-                    .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
+                tasks.push(task::index(parents, state.locations.clone()).boxed());
+                state.insert_op_chain([
+                    Operation::Gather { cmd, sources, splits },
+                    Operation::Finish,
+                ]);
             }
             Command::Build { ref paths, ref splits } => {
-                info!(taget = "status"; "Building {} sources", paths.len());
-                let (paths, paths_parents) = get_paths(paths)?;
+                info!(target = "status"; "Building {} sources", paths.len());
+                let (sources, parents) = get_sources_and_parents(paths)?;
                 let splits = Some(splits.clone());
 
-                tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
-                state
-                    .insert_op_chain([Operation::Gather { cmd, paths, splits }, Operation::Finish]);
+                tasks.push(task::index(parents, state.locations.clone()).boxed());
+                state.insert_op_chain([
+                    Operation::Gather { cmd, sources, splits },
+                    Operation::Finish,
+                ]);
             }
             Command::Exit => state.should_exit.store(true, Ordering::Relaxed),
         },

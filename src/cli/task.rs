@@ -6,6 +6,8 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 
+use data_url::DataUrl;
+use either::Either;
 use log::{debug, info, trace, warn};
 use murkdown::{
     ast::{Node, NodeBuilder},
@@ -22,11 +24,13 @@ use super::{
     types::{AppError, AppErrorPathCtx, ArtifactMap, LangMap, Output},
     utils::{is_file, is_visible},
 };
-use crate::cli::command::GraphType;
 use crate::cli::{
     artifact::Artifact,
-    command::Command,
-    utils::{into_uri_path_tuple, spawn_command, wait_command, write_command},
+    command::{Command, GraphType},
+    types::Source,
+    utils::{
+        into_id_source_tuple, into_uri_path_tuple, spawn_command, wait_command, write_command,
+    },
 };
 
 /// Index the contents of provided paths
@@ -58,7 +62,7 @@ pub async fn index(
 
 /// Gather entry points and schedule dependencies
 pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bool, AppError> {
-    let Operation::Gather { cmd, paths, splits: _ } = &op else {
+    let Operation::Gather { ref cmd, ref sources, .. } = op else {
         panic!()
     };
     debug!("Gathering files");
@@ -68,20 +72,35 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
     let is_source_or_explicitly_included = |e: &DirEntry| {
         let path = e.path();
         let path_is_md = path.extension().map(|s| s == "md").unwrap_or(false);
-        path_is_md || paths.iter().any(|p| *p == path)
+        path_is_md || sources.iter().any(|p| p == path)
     };
 
-    // schedule dependent tasks
-    for path in paths {
-        let walker = WalkDir::new(path)
-            .into_iter()
-            .filter_entry(is_visible)
-            .filter_map(Result::ok)
-            .filter(is_file)
-            .filter(is_source_or_explicitly_included)
-            .map(into_uri_path_tuple);
+    for source in sources {
+        // build iterator over source paths
+        let walker = match source {
+            Source::Path(path) => {
+                let items_from_path = WalkDir::new(path)
+                    .into_iter()
+                    .filter_entry(is_visible)
+                    .filter_map(Result::ok)
+                    .filter(is_file)
+                    .filter(is_source_or_explicitly_included)
+                    .map(into_id_source_tuple);
+                Either::Left(items_from_path)
+            }
+            Source::Url(pattern) => {
+                let url = DataUrl::process(pattern)?;
+                let fragment = url.decode_to_vec()?.1;
+                let item_from_url = match fragment {
+                    Some(f) => (f.to_percent_encoded(), Source::Url(pattern.clone())),
+                    None => return Err(AppError::bad_data_url_fragment(pattern)),
+                };
+                Either::Right(std::iter::once(item_from_url))
+            }
+        };
 
-        for (id, path) in walker {
+        // schedule dependent tasks
+        for (id, source) in walker {
             let id: Arc<str> = Arc::from(id.as_ref());
             trace!("Gathered {}", id);
 
@@ -89,14 +108,15 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
             match cmd {
                 Command::Load { .. } => {
                     if graph.get(&OpId::load(id.clone())).is_none() {
-                        graph.insert_node_chain([Operation::Load { id, path }, Operation::Finish]);
+                        graph
+                            .insert_node_chain([Operation::Load { id, source }, Operation::Finish]);
                     } else {
                         // reload
                     }
                 }
                 Command::Build { .. } | Command::Graph { .. } => graph.insert_node_chain([
                     op.clone(),
-                    Operation::Load { id: id.clone(), path },
+                    Operation::Load { id: id.clone(), source },
                     Operation::Parse { id: id.clone() },
                     Operation::Preprocess { id: id.clone() },
                     Operation::Compile { id: id.clone() },
@@ -238,16 +258,34 @@ pub async fn load(
     artifacts: Arc<Mutex<ArtifactMap>>,
 ) -> Result<bool, AppError> {
     let uri = op.uri();
-    let Operation::Load { id, path } = &op else {
+    let Operation::Load { id, source } = &op else {
         unreachable!()
     };
     debug!("Loading {id}");
-    let artifact = match tokio::fs::read_to_string(path).await {
-        Ok(contents) => Artifact::Plaintext("text/plain".to_string(), contents),
-        Err(_) => Artifact::Binary(
-            "application/octet-stream".to_string(),
-            std::fs::read(path).with_ctx(path)?,
-        ),
+    let artifact = match source {
+        Source::Path(path) => match tokio::fs::read_to_string(path).await {
+            Ok(contents) => Artifact::Plaintext("text/plain".to_string(), contents),
+            Err(_) => Artifact::Binary(
+                "application/octet-stream".to_string(),
+                std::fs::read(path).with_ctx(path)?,
+            ),
+        },
+        Source::Url(pattern) => {
+            let url = DataUrl::process(pattern)?;
+            match url.mime_type().type_.as_str() {
+                "text" => {
+                    let body = url.decode_to_vec()?.0;
+                    let data = String::from_utf8(body).map_err(|_| AppError::bad_url(pattern))?;
+                    let media_type = url.mime_type();
+                    Artifact::Plaintext(media_type.to_string(), data)
+                }
+                _ => {
+                    let data = url.decode_to_vec()?.0;
+                    let media_type = url.mime_type();
+                    Artifact::Binary(media_type.to_string(), data)
+                }
+            }
+        }
     };
 
     let node = match &artifact {
@@ -371,24 +409,28 @@ pub async fn preprocess(
                             graph.add_dependency(OpId::from(&op), OpId::exec(uri_path));
                             continue;
                         }
-                        let path = locs
+                        let source = locs
                             .get(uri_path)
                             .ok_or(AppError::file_not_found(uri_path))?
-                            .clone();
+                            .clone()
+                            .into();
                         match schema {
                             "file" => {
-                                graph.insert_node_chain([Operation::Load { id, path }, op.clone()]);
+                                graph.insert_node_chain([
+                                    Operation::Load { id, source },
+                                    op.clone(),
+                                ]);
                             }
                             "ast" => {
                                 graph.insert_node_chain([
-                                    Operation::Load { id: id.clone(), path },
+                                    Operation::Load { id: id.clone(), source },
                                     Operation::Parse { id },
                                     op.clone(),
                                 ]);
                             }
                             "parse" => {
                                 graph.insert_node_chain([
-                                    Operation::Load { id: id.clone(), path },
+                                    Operation::Load { id: id.clone(), source },
                                     Operation::Parse { id: id.clone() },
                                     Operation::Preprocess { id },
                                     op.clone(),
@@ -396,7 +438,7 @@ pub async fn preprocess(
                             }
                             "copy" => {
                                 graph.insert_node_chain([
-                                    Operation::Copy { id, path },
+                                    Operation::Copy { id, source },
                                     Operation::Finish,
                                 ]);
                             }
@@ -411,12 +453,13 @@ pub async fn preprocess(
                             graph.insert_node_chain([Operation::Write { id }, Operation::Finish]);
                         }
                         "copy" => {
-                            let path = locs
+                            let source = locs
                                 .get(uri_path)
                                 .ok_or(AppError::file_not_found(uri_path))?
-                                .clone();
+                                .clone()
+                                .into();
                             graph.insert_node_chain([
-                                Operation::Copy { id, path },
+                                Operation::Copy { id, source },
                                 Operation::Finish,
                             ]);
                         }
@@ -528,7 +571,7 @@ pub async fn write(
 /// Copy artifact to target
 // TODO should the output come in op instead?
 pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
-    let Operation::Copy { id, path: source } = op else {
+    let Operation::Copy { id, source } = op else {
         unreachable!()
     };
 
@@ -536,13 +579,16 @@ pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
         Output::StdOut | Output::StdOutLog => {
             debug!("Copying of {id} skipped");
         }
-        Output::Path(root) => {
-            let target = root.join(&*id);
-            debug!("Copying {id} to {}", target.display());
-            fs::copy(source.clone(), target.clone())
-                .await
-                .map_err(|err| AppError::copy_error(err, source, target))?;
-        }
+        Output::Path(root) => match source {
+            Source::Path(path) => {
+                let target = root.join(&*id);
+                debug!("Copying {id} to {}", target.display());
+                fs::copy(path.clone(), target.clone())
+                    .await
+                    .map_err(|err| AppError::copy_error(err, path, target))?;
+            }
+            Source::Url(_) => todo!(),
+        },
     }
 
     Ok(false)

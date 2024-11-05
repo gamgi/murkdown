@@ -100,20 +100,21 @@ impl OpGraph {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, sync::Arc};
+    use std::sync::Arc;
 
     use super::*;
+    use crate::cli::types::Source;
 
     #[test]
     fn test_graph() {
         let mut graph = OpGraph::new();
         graph.insert_node(Operation::Load {
             id: Arc::from("foo"),
-            path: PathBuf::new(),
+            source: Source::empty(),
         });
         graph.insert_node(Operation::Load {
             id: Arc::from("bar"),
-            path: PathBuf::new(),
+            source: Source::empty(),
         });
 
         assert_eq!(graph.vertices.len(), 2);
@@ -124,11 +125,11 @@ mod tests {
         let mut graph = OpGraph::new();
         graph.insert_node(Operation::Load {
             id: Arc::from("foo"),
-            path: PathBuf::new(),
+            source: Source::empty(),
         });
         graph.insert_node(Operation::Load {
             id: Arc::from("bar"),
-            path: PathBuf::new(),
+            source: Source::empty(),
         });
         graph.add_dependency(OpId::load("foo"), OpId::load("bar"));
 

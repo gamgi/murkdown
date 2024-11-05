@@ -5,6 +5,7 @@ use murkdown::types::ExecArtifact;
 
 use crate::cli::command::GraphType;
 use crate::cli::task::{exec, graph, index, preprocess};
+use crate::cli::types::Source;
 use crate::cli::{
     artifact::Artifact,
     op::{OpId, Operation},
@@ -94,7 +95,7 @@ async fn test_preprocess_adds_src_operations() {
         [
             &Operation::Load {
                 id: "bar".into(),
-                path: PathBuf::from("file.txt")
+                source: Source::from("file.txt")
             },
             &Operation::Parse { id: "bar".into() },
             &Operation::Preprocess { id: "bar".into() },

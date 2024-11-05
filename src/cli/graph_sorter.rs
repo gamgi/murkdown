@@ -84,17 +84,15 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::*;
-    use crate::cli::op::Operation;
+    use crate::cli::{op::Operation, types::Source};
 
     #[test]
     fn test_topological_sort() {
         let mut graph = OpGraph::new();
         let load = graph.insert_node(Operation::Load {
             id: "file.md".into(),
-            path: PathBuf::from("examples/file.md"),
+            source: Source::from("examples/file.md"),
         });
         let parse = graph.insert_node(Operation::Parse { id: "file.md".into() });
         graph.add_dependency(parse.clone(), load.clone());
@@ -108,13 +106,13 @@ mod tests {
         let mut graph = OpGraph::new();
         let load1 = graph.insert_node(Operation::Load {
             id: "file1.md".into(),
-            path: PathBuf::from("examples/file1.md"),
+            source: Source::from("examples/file1.md"),
         });
         let parse1 = graph.insert_node(Operation::Parse { id: "file1.md".into() });
 
         let load2 = graph.insert_node(Operation::Load {
             id: "file2.md".into(),
-            path: PathBuf::from("examples/file2.md"),
+            source: Source::from("examples/file2.md"),
         });
         let parse2 = graph.insert_node(Operation::Parse { id: "file2.md".into() });
 

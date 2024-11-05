@@ -1,5 +1,4 @@
 use std::fmt::{self, Display, Formatter};
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -7,7 +6,7 @@ use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
 use murkdown::types::{ExecArtifact, ExecInput, URI};
 
 use super::command::{Command, GraphType};
-use super::types::AppError;
+use super::types::{AppError, Source};
 
 type Id = Arc<str>;
 
@@ -48,7 +47,7 @@ impl From<&Operation> for Op {
 pub enum Operation {
     Gather {
         cmd: Command,
-        paths: Vec<PathBuf>,
+        sources: Vec<Source>,
         #[allow(dead_code)]
         splits: Option<Vec<String>>,
     },
@@ -60,7 +59,7 @@ pub enum Operation {
     },
     Load {
         id: Id,
-        path: PathBuf,
+        source: Source,
     },
     Parse {
         id: Id,
@@ -76,7 +75,7 @@ pub enum Operation {
     },
     Copy {
         id: Id,
-        path: PathBuf,
+        source: Source,
     },
     Finish,
     Graph {

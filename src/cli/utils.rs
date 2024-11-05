@@ -10,7 +10,7 @@ use tokio::{
 };
 use walkdir::DirEntry;
 
-use super::types::AppError;
+use super::types::{AppError, Source};
 
 pub fn is_visible(entry: &DirEntry) -> bool {
     entry
@@ -32,6 +32,16 @@ pub fn into_uri_path_tuple(entry: DirEntry) -> (String, PathBuf) {
         .display()
         .to_string();
     (id, path)
+}
+
+pub fn into_id_source_tuple(entry: DirEntry) -> (String, Source) {
+    let path = entry.path().to_path_buf();
+    let id = path
+        .strip_prefix("./")
+        .unwrap_or(&path)
+        .display()
+        .to_string();
+    (id, Source::from(path))
 }
 
 pub fn spawn_command(program: &str, args: &str) -> Result<Child, AppError> {

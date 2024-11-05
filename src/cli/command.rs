@@ -51,14 +51,14 @@ pub(crate) enum Command {
         #[arg(value_enum, value_name = "TYPE")]
         graph_type: GraphType,
 
-        /// Input paths
+        /// Input paths or data URLs
         #[clap(value_name = "PATH")]
         #[arg(default_values_t = [".".to_string()])]
         paths: Vec<String>,
     },
     /// Load content into memory
     Load {
-        /// Input paths
+        /// Input paths or data URLs
         paths: Vec<String>,
     },
     /// Build sources
@@ -68,7 +68,7 @@ pub(crate) enum Command {
         #[arg(default_values_t = ["ROOT".to_string(), "DOCUMENT".to_string()])]
         splits: Vec<String>,
 
-        /// Input paths
+        /// Input paths or data URLs
         #[clap(value_name = "PATH")]
         #[arg(default_values_t = [".".to_string()])]
         paths: Vec<String>,

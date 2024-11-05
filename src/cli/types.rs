@@ -1,6 +1,10 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use clap::error::Error as ClapError;
+use data_url::{forgiving_base64::InvalidBase64, DataUrlError};
 use murkdown::{
     compiler::Lang,
     types::{LibError, URI},
@@ -36,6 +40,68 @@ pub enum Output {
     Path(PathBuf),
 }
 
+/// Data Source
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
+pub enum Source {
+    Path(PathBuf),
+    Url(String),
+}
+
+#[cfg(test)]
+impl Source {
+    pub fn empty() -> Self {
+        Self::Path(PathBuf::new())
+    }
+}
+
+impl From<&String> for Source {
+    fn from(value: &String) -> Self {
+        match value {
+            v if v.starts_with("data:") => Self::Url(v.to_string()),
+            v => Self::Path(PathBuf::from(v)),
+        }
+    }
+}
+
+impl From<&str> for Source {
+    fn from(value: &str) -> Self {
+        match value {
+            v if v.starts_with("data:") => Self::Url(v.to_string()),
+            v => Self::Path(PathBuf::from(v)),
+        }
+    }
+}
+
+impl PartialEq<Path> for Source {
+    fn eq(&self, other: &Path) -> bool {
+        match self {
+            Source::Path(path_buf) => path_buf == other,
+            Source::Url(_) => false,
+        }
+    }
+}
+
+impl TryInto<PathBuf> for Source {
+    type Error = std::io::Error;
+
+    fn try_into(self) -> Result<PathBuf, Self::Error> {
+        use std::io::{Error, ErrorKind};
+        match self {
+            Source::Path(path_buf) => Ok(path_buf),
+            Source::Url(_) => Err(Error::new(
+                ErrorKind::InvalidInput,
+                "cannot build path fomr data url",
+            )),
+        }
+    }
+}
+
+impl From<PathBuf> for Source {
+    fn from(value: PathBuf) -> Self {
+        Self::Path(value)
+    }
+}
+
 #[derive(Error, Debug, thiserror_ext::Box, thiserror_ext::Construct)]
 #[thiserror_ext(newtype(name = AppError))]
 pub enum AppErrorKind {
@@ -61,6 +127,14 @@ pub enum AppErrorKind {
     BadPath(PathBuf),
     #[error("invalid URI: {0}")]
     BadUri(String),
+    #[error("invalid URL: {0}")]
+    BadUrl(String),
+    #[error("invalid data URL: {0}")]
+    BadDataUrl(#[from] DataUrlError),
+    #[error("missing data URL fragment: {0}")]
+    BadDataUrlFragment(String),
+    #[error("invalid data URL encoding: {0}")]
+    BadDataUrlBase64(#[from] InvalidBase64),
     #[error("unknown URI schema `{0}`")]
     UnknownSchema(String),
     #[error("could not read `{path}`: {source}")]
