@@ -3,6 +3,9 @@ PREPROCESS RULES:
 [LIST] [SEC...]$
   NOOP
 
+[CODE...] [SEC...]$
+  NOOP
+
 [SEC...]$
   IS PARAGRAPHABLE
 
@@ -14,6 +17,18 @@ COMPILE RULES:
 /* section */
 [SEC...]$
   NOOP
+
+[CODE...]$
+  WRITE indent
+  WRITE "<pre><code data-noescape data-language-$language data-line-numbers>"
+  SWAP prefix prefix_
+  SWAP indent indent_
+  YIELD
+  SWAP prefix prefix_
+  SWAP indent indent_
+  WRITE "\n"
+  WRITE indent
+  WRITE "</code></pre>"
 
 /* heading block */
 [...]( [SEC...] [...HEADING...]){3}$
@@ -70,6 +85,16 @@ COMPILE RULES:
   WRITE "\n"
   WRITE indent
   WRITE "</p>"
+
+/* block */
+[...]$
+  PUSH indent "  "
+  WRITE "<div>\n"
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITE indent
+  WRITE "</div>"
 
 /* line */
 LINE$

@@ -27,7 +27,7 @@ Int         = { ASCII_DIGIT+ }
 StackRef    = { (!(NEWLINE | WHITE_SPACE | "\\") ~ ANY_LETTER )+ }
 
 ANY_LETTER  =_{ LETTER | NUMBER | MARK | PUNCTUATION | SYMBOL | SEPARATOR }
-KEYWORD     =_{ "DEC" | "DRAIN" | "EXEC" | "INC" |  "LOAD" | "NOOP" |  "PUSH" | "POP" | "SET" | "WRITEALL" | "WRITE" | "YIELD" }
+KEYWORD     =_{ "DEC" | "DRAIN" | "EXEC" | "INC" |  "LOAD" | "NOOP" |  "PUSH" | "POP" | "SET" | "SWAP" | "WRITEALL" | "WRITE" | "YIELD" }
 SECTION     = { "PREPROCESS" | "COMPILE" }
 INDENT      =_{ PUSH("  ") }
 UNINDENT    =_{ DROP }

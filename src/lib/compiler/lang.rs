@@ -133,6 +133,17 @@ impl Lang {
                     v.pop();
                     v.push(Cow::Owned(value.to_string()));
                 }
+                ("SWAP", [StackRef(target), StackRef(source)]) => {
+                    let source_value = ctx.stacks.remove(source.as_str());
+                    let target_value = match source_value {
+                        Some(v) => ctx.stacks.insert(target.as_str().into(), v),
+                        None => None,
+                    };
+                    match target_value {
+                        Some(v) => ctx.stacks.insert(source.as_str().into(), v),
+                        None => None,
+                    };
+                }
                 ("WRITE", [StackRef(stack)]) => {
                     let stack = ctx.stacks.get(stack.as_str());
                     if let Some(value) = stack.and_then(|v| v.last()) {
