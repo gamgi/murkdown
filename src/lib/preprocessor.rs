@@ -206,22 +206,28 @@ fn preprocess_paragraphs(node: &mut Node, settings: &LangSettings) {
             let res = Vec::<Node>::new();
             let new_children = children.into_iter().fold(res, |mut res, mut right| {
                 if let Some(left) = res.last_mut() {
+                    let left_v = left.value.as_deref();
+                    let right_v = right.value.as_deref();
+
                     if matches!(left.rule, Rule::Line | Rule::Paragraph)
                         && matches!(right.rule, Rule::Line)
+                        && !right_v.unwrap().is_empty()
                     {
-                        match (left.value.as_deref(), right.value.as_deref()) {
+                        match (left_v, right_v) {
+                            (_, Some("")) => unreachable!(),
+                            (Some(""), _) => res.push(right),
                             (Some(_), Some(r)) => match left.rule {
                                 Rule::Line => {
-                                    let l = left.value.as_ref().unwrap();
-                                    let value = Arc::from(format!("{l}\n{r}"));
+                                    let l = left_v.unwrap();
+                                    let value = Arc::from(format!("{l} {r}"));
                                     let new = std::mem::take(left);
                                     left.value = Some(value);
                                     left.rule = Rule::Paragraph;
                                     left.children = Some(vec![new, right]);
                                 }
                                 Rule::Paragraph => {
-                                    let l = left.value.as_ref().unwrap();
-                                    let value = Arc::from(format!("{l}\n{r}"));
+                                    let l = left_v.unwrap();
+                                    let value = Arc::from(format!("{l} {r}"));
                                     left.value = Some(value);
                                     left.children.as_mut().unwrap().push(right);
                                 }
@@ -229,20 +235,20 @@ fn preprocess_paragraphs(node: &mut Node, settings: &LangSettings) {
                             },
                             _ => res.push(right),
                         }
-                    } else if matches!(left.rule, Rule::Line) {
+                    } else if matches!(left.rule, Rule::Line) && !left_v.unwrap().is_empty() {
                         // turn left into paragraph
-                        let l = left.value.as_ref().unwrap();
-                        let value = Arc::from(format!("{l}"));
+                        let l = left_v.unwrap();
+                        let value = Arc::from(l);
                         let new = std::mem::take(left);
                         left.value = Some(value);
                         left.rule = Rule::Paragraph;
                         left.children = Some(vec![new]);
 
                         res.push(right);
-                    } else if matches!(right.rule, Rule::Line) {
+                    } else if matches!(right.rule, Rule::Line) && !right_v.unwrap().is_empty() {
                         // turn right into paragraph
-                        let r = right.value.as_ref().unwrap();
-                        let value = Arc::from(format!("{r}"));
+                        let r = right_v.unwrap();
+                        let value = Arc::from(r);
                         let new = std::mem::take(&mut right);
                         right.value = Some(value);
                         right.rule = Rule::Paragraph;
@@ -482,6 +488,26 @@ mod tests {
     }
 
     #[test]
+    fn test_preprocess_builds_paragraphs_but_retains_empty_lines() {
+        let rules = indoc! {
+            r#"
+            PREPROCESS RULES:
+            [SEC...]$
+              IS PARAGRAPHABLE
+            "#
+        };
+        let mut asts = AstMap::default();
+        let mut node = NodeBuilder::root().add_section(vec![Node::line("")]).done();
+        let mut locs = LocationMap::default();
+        let lang = Lang::new(rules).ok();
+        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
+
+        let section = node.children.as_ref().unwrap().first().unwrap();
+        let children = section.children.as_ref().unwrap();
+        assert_eq!(children, &vec![Node::line(""),]);
+    }
+
+    #[test]
     fn test_preprocess_builds_paragraphs() {
         let rules = indoc! {
             r#"
@@ -500,7 +526,11 @@ mod tests {
                 Node::line("foo"),
                 Node::line("bar"),
                 Node::ellipsis(),
+                Node::line(""),
                 Node::line("foo"),
+                Node::line(""),
+                Node::ellipsis(),
+                Node::line("bar"),
             ])
             .done();
         let mut locs = LocationMap::default();
@@ -516,7 +546,11 @@ mod tests {
                 Node::ellipsis(),
                 Node::paragraph(&["foo", "bar"]),
                 Node::ellipsis(),
+                Node::line(""),
                 Node::paragraph(&["foo"]),
+                Node::line(""),
+                Node::ellipsis(),
+                Node::paragraph(&["bar"]),
             ]
         );
     }

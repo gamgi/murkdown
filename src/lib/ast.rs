@@ -43,7 +43,7 @@ impl Node {
     #[cfg(test)]
     pub fn paragraph(values: &[&str]) -> Self {
         NodeBuilder::new(Rule::Paragraph)
-            .value(Arc::from(values.join("\n")))
+            .value(Arc::from(values.join(" ")))
             .children(values.iter().map(|v| Node::line(v)).collect())
             .build()
             .unwrap()
