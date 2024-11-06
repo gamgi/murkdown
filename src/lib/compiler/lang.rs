@@ -1,5 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
+use htmlize::escape_text;
+
 use super::{
     rule::{self, Context, LangInstr, LangSettings},
     rule_argument::Arg,
@@ -42,17 +44,20 @@ impl Lang {
         ctx: &'b mut Context<'a>,
         deps: &mut HashSet<Dependency>,
         node: &'c mut Node,
+        set: &LangSettings,
     ) -> Result<String, LibError> {
         let mut out = String::new();
         for inst in instructions {
             use Arg::*;
             match (inst.op.as_str(), inst.args.as_slice()) {
                 ("EXEC", [Str(cmd), destination @ (MediaType(_) | File(_)), URIPath(id)]) => {
-                    let cmd = replace(cmd, ctx, &*node).to_string();
-                    let id = replace(id, ctx, &*node).to_string();
+                    let cmd = replace(cmd, ctx, &*node, set).to_string();
+                    let id = replace(id, ctx, &*node, set).to_string();
                     let artifact = match destination {
-                        MediaType(t) => ExecArtifact::Stdout(replace(t, ctx, &*node).to_string()),
-                        File(p) => ExecArtifact::Path(replace(p, ctx, &*node).as_ref().into()),
+                        MediaType(t) => {
+                            ExecArtifact::Stdout(replace(t, ctx, &*node, set).to_string())
+                        }
+                        File(p) => ExecArtifact::Path(replace(p, ctx, &*node, set).as_ref().into()),
                         _ => unreachable!(),
                     };
                     let input = node.children.as_ref().map(|children| {
@@ -79,7 +84,7 @@ impl Lang {
                 ("PUSH", [StackRef(target), Str(value)])
                     if ["src", "ref"].contains(&target.as_str()) =>
                 {
-                    let value = replace(value, ctx, &*node);
+                    let value = replace(value, ctx, &*node, set);
                     ctx.stacks
                         .entry(Arc::from(target.as_str()))
                         .or_default()
@@ -87,7 +92,7 @@ impl Lang {
                     node.add_prop(target.as_str(), Arc::from(value));
                 }
                 ("PUSH", [StackRef(target), Str(value)]) => {
-                    let value = replace(value, ctx, &*node);
+                    let value = replace(value, ctx, &*node, set);
                     ctx.stacks
                         .entry(Arc::from(target.as_str()))
                         .or_default()
@@ -118,7 +123,7 @@ impl Lang {
                     }
                 }
                 ("SET", [StackRef(target), Str(value)]) => {
-                    let value = replace(value, ctx, node);
+                    let value = replace(value, ctx, node, set);
                     let v = ctx
                         .stacks
                         .raw_entry_mut()
@@ -134,7 +139,7 @@ impl Lang {
                         out.push_str(value);
                     }
                 }
-                ("WRITE", [Str(value)]) => out.push_str(&replace(value, ctx, node)),
+                ("WRITE", [Str(value)]) => out.push_str(&replace(value, ctx, node, set)),
                 ("WRITEALL", [StackRef(stack)]) => {
                     let stack = ctx.stacks.get(stack.as_str());
                     if let Some(stack) = stack {
@@ -152,12 +157,23 @@ impl Lang {
     }
 }
 
-fn replace<'a>(template: &'a str, ctx: &Context, node: &Node) -> Cow<'a, str> {
+fn replace<'a>(
+    template: &'a str,
+    ctx: &Context,
+    node: &Node,
+    settings: &LangSettings,
+) -> Cow<'a, str> {
     if !template.contains("\\") && !template.contains("$") {
         return Cow::Borrowed(template);
     }
+
+    let value = match settings.is_unescaped_value {
+        true => node.value.as_deref().map(Cow::Borrowed),
+        false => node.value.as_deref().map(escape_text).to_owned(),
+    };
+
     let mut result = template
-        .replace(r#"\v"#, node.value.as_deref().unwrap_or_default())
+        .replace(r#"\v"#, value.as_deref().unwrap_or_default())
         .replace(r#"\m"#, node.marker.as_deref().unwrap_or_default())
         .replace(r#"\n"#, "\n");
 
@@ -231,11 +247,11 @@ mod tests {
         let lang = Lang::new(input).unwrap();
         let mut node = Node::default();
 
-        let (mut instructions, _) = lang.get_instructions("COMPILE", "[rule]");
+        let (mut instructions, settings) = lang.get_instructions("COMPILE", "[rule]");
         let mut ctx = Context::default();
 
         let value = lang
-            .evaluate(&mut instructions, &mut ctx, &mut deps, &mut node)
+            .evaluate(&mut instructions, &mut ctx, &mut deps, &mut node, &settings)
             .unwrap();
         assert_eq!(ctx.stacks.get("indent").unwrap(), &["hello", "world"]);
         assert_eq!(value, "ok");
@@ -259,11 +275,11 @@ mod tests {
             .add_prop(("word".into(), "world".into()))
             .done();
 
-        let (mut instructions, _) = lang.get_instructions("COMPILE", "[rule]");
+        let (mut instructions, settings) = lang.get_instructions("COMPILE", "[rule]");
         let mut ctx = Context::default();
 
         let value = lang
-            .evaluate(&mut instructions, &mut ctx, &mut deps, &mut node)
+            .evaluate(&mut instructions, &mut ctx, &mut deps, &mut node, &settings)
             .unwrap();
         assert_eq!(value, "hello world");
     }

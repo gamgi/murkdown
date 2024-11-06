@@ -54,6 +54,7 @@ pub struct LangSettings {
     #[allow(unused)]
     pub is_composable: bool,
     pub is_paragraphable: bool,
+    pub is_unescaped_value: bool,
 }
 
 /// Context for evaluating a rule
@@ -102,16 +103,18 @@ fn parse_recursive<'a>(
         if pair.as_rule() == Rule::Rule {
             let mut pairs = pair.into_inner().peekable();
             let path = pairs.next().unwrap().as_str().to_string();
-            let (is_composable, is_paragraphable) = match pairs.peek().unwrap().as_rule() {
-                Rule::Settings => {
-                    let settings = pairs.next().unwrap().as_str();
-                    (
-                        settings.contains("COMPOSABLE"),
-                        settings.contains("PARAGRAPHABLE"),
-                    )
-                }
-                _ => (false, false),
-            };
+            let (is_composable, is_paragraphable, is_unescaped_value) =
+                match pairs.peek().unwrap().as_rule() {
+                    Rule::Settings => {
+                        let settings = pairs.next().unwrap().as_str();
+                        (
+                            settings.contains("COMPOSABLE"),
+                            settings.contains("PARAGRAPHABLE"),
+                            settings.contains("UNESCAPED_VALUE"),
+                        )
+                    }
+                    _ => (false, false, false),
+                };
 
             let regex = Regex::new(
                 &path
@@ -126,7 +129,11 @@ fn parse_recursive<'a>(
                 let args = pairs.map(Arg::try_from).collect::<Result<_, _>>()?;
                 instructions.push(LangInstr { op, args });
             }
-            let settings = LangSettings { is_composable, is_paragraphable };
+            let settings = LangSettings {
+                is_composable,
+                is_paragraphable,
+                is_unescaped_value,
+            };
             result.push(LangRule { path, regex, instructions, settings });
         }
     }
@@ -167,6 +174,7 @@ mod tests {
             settings: LangSettings {
                 is_composable: true,
                 is_paragraphable: true,
+                is_unescaped_value: false,
             },
         };
         assert_eq!(rule.path, expected.path);

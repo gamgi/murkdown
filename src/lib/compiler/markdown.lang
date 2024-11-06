@@ -55,5 +55,6 @@ COMPILE RULES:
 
 /* line */
 LINE$
+  IS UNESCAPED_VALUE
   WRITEALL prefix
   WRITE " \v"

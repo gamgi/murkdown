@@ -41,7 +41,7 @@ fn preprocess_recursive<'a>(
     let (mut instructions, settings) = lang.get_instructions("PREPROCESS", &path);
 
     // Evaluate pre-yield
-    lang.evaluate(&mut instructions, ctx, deps, node)?;
+    lang.evaluate(&mut instructions, ctx, deps, node, &settings)?;
 
     match node.rule {
         Rule::Root => {
@@ -71,7 +71,7 @@ fn preprocess_recursive<'a>(
     }
 
     // Evaluate post-yield
-    lang.evaluate(&mut instructions, &mut *ctx, deps, node)?;
+    lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
 
     Ok(())
 }

@@ -24,7 +24,7 @@ URIPath     = { Str }
 PropRef     =@{ StackRef }
 Str         = { (!(NEWLINE | "\"") ~ ("\\\"" | ANY_LETTER))+ }
 Int         = { ASCII_DIGIT+ }
-StackRef    = { (!(NEWLINE | WHITE_SPACE ) ~ ANY_LETTER )+ }
+StackRef    = { (!(NEWLINE | WHITE_SPACE | "\\") ~ ANY_LETTER )+ }
 
 ANY_LETTER  =_{ LETTER | NUMBER | MARK | PUNCTUATION | SYMBOL | SEPARATOR }
 KEYWORD     =_{ "DEC" | "DRAIN" | "EXEC" | "INC" |  "LOAD" | "NOOP" |  "PUSH" | "POP" | "SET" | "WRITEALL" | "WRITE" | "YIELD" }

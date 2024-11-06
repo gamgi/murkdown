@@ -37,10 +37,10 @@ fn compile_recusive<'a>(
     while let Some(node) = nodes.next() {
         let path = node.build_path(base_path);
 
-        let (mut instructions, _) = lang.get_instructions("COMPILE", &path);
+        let (mut instructions, settings) = lang.get_instructions("COMPILE", &path);
 
         // Evaluate pre-yield
-        let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node)?;
+        let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
         out.push_str(&value);
 
         if let Some(Pointer(weak)) = &node.pointer {
@@ -54,7 +54,7 @@ fn compile_recusive<'a>(
         }
 
         // Evaluate post-yield
-        let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node)?;
+        let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
         out.push_str(&value);
 
         if nodes.peek().is_some() || node.rule == parser::Rule::Root {
@@ -116,5 +116,38 @@ mod tests {
             "#
             }
         );
+    }
+
+    #[test]
+    fn test_compile_escapes_value_by_default() {
+        let lang = Lang::new(indoc! {
+            r#"
+            COMPILE RULES:
+            [SEC...] LINE$
+              WRITE "\v"
+            "#
+        })
+        .ok();
+        let unescaped_lang = Lang::new(indoc! {
+            r#"
+            COMPILE RULES:
+            [SEC...] LINE$
+              IS UNESCAPED_VALUE
+              WRITE "\v"
+            "#
+        })
+        .ok();
+        let mut node = NodeBuilder::root()
+            .add_section(vec![NodeBuilder::block(">")
+                .add_prop(("src".into(), "bar".into()))
+                .add_section(vec![Node::new_line("<br />")])
+                .done()])
+            .done();
+
+        let result = compile(&mut node, unescaped_lang.as_ref()).unwrap();
+        assert_eq!(&result, "<br />");
+
+        let result = compile(&mut node, lang.as_ref()).unwrap();
+        assert_eq!(&result, "&lt;br /&gt;");
     }
 }
