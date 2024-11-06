@@ -365,9 +365,9 @@ mod tests {
             .children(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
                 .children(vec![
-                    Node::new_line("foo"),
+                    Node::line("foo"),
                     NodeBuilder::new(Rule::Ellipsis).done(),
-                    Node::new_line("baz"),
+                    Node::line("baz"),
                 ])
                 .done()])
             .done();
@@ -430,7 +430,7 @@ mod tests {
         let mut asts = AstMap::default();
         asts.insert(
             "parse:other.md#bar".to_string(),
-            Arc::new(Mutex::new(Node::new_line("other"))),
+            Arc::new(Mutex::new(Node::line("other"))),
         );
 
         let mut node = NodeBuilder::root()
@@ -493,14 +493,14 @@ mod tests {
         let mut asts = AstMap::default();
         let mut node = NodeBuilder::root()
             .add_section(vec![
-                Node::new_line("foo"),
-                Node::new_line("bar"),
-                Node::new_line("baz"),
+                Node::line("foo"),
+                Node::line("bar"),
+                Node::line("baz"),
                 Node::ellipsis(),
-                Node::new_line("foo"),
-                Node::new_line("bar"),
+                Node::line("foo"),
+                Node::line("bar"),
                 Node::ellipsis(),
-                Node::new_line("foo"),
+                Node::line("foo"),
             ])
             .done();
         let mut locs = LocationMap::default();

@@ -33,7 +33,7 @@ impl Node {
         NodeBuilder::from(pair).build().unwrap()
     }
 
-    pub fn new_line(value: &str) -> Self {
+    pub fn line(value: &str) -> Self {
         NodeBuilder::new(Rule::Line)
             .value(Arc::from(value))
             .build()
@@ -44,7 +44,7 @@ impl Node {
     pub fn paragraph(values: &[&str]) -> Self {
         NodeBuilder::new(Rule::Paragraph)
             .value(Arc::from(values.join("\n")))
-            .children(values.iter().map(|v| Node::new_line(v)).collect())
+            .children(values.iter().map(|v| Node::line(v)).collect())
             .build()
             .unwrap()
     }

@@ -81,7 +81,7 @@ mod tests {
         let mut node = NodeBuilder::root()
             .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
-                .add_section(vec![Node::new_line("foo")])
+                .add_section(vec![Node::line("foo")])
                 .done()])
             .done();
         let result = compile(&mut node, lang.as_ref()).unwrap();
@@ -96,12 +96,12 @@ mod tests {
             .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
                 .add_section(vec![
-                    Node::new_line("foo"),
+                    Node::line("foo"),
                     NodeBuilder::block(">")
                         .add_prop(("src".into(), "bar".into()))
-                        .add_section(vec![Node::new_line("bar")])
+                        .add_section(vec![Node::line("bar")])
                         .done(),
-                    Node::new_line("baz"),
+                    Node::line("baz"),
                 ])
                 .done()])
             .done();
@@ -140,7 +140,7 @@ mod tests {
         let mut node = NodeBuilder::root()
             .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
-                .add_section(vec![Node::new_line("<br />")])
+                .add_section(vec![Node::line("<br />")])
                 .done()])
             .done();
 

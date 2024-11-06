@@ -203,7 +203,7 @@ pub async fn exec(
 
     if let Artifact::Plaintext(_, content) = &main_artifact {
         let node = NodeBuilder::root()
-            .add_section(content.split('\n').map(Node::new_line).collect())
+            .add_section(content.split('\n').map(Node::line).collect())
             .done();
 
         match asts.entry(uri.clone()) {
@@ -218,7 +218,7 @@ pub async fn exec(
 
     if let Artifact::Plaintext(_, content) = &stdout_artifact {
         let node = NodeBuilder::root()
-            .add_section(content.split('\n').map(Node::new_line).collect())
+            .add_section(content.split('\n').map(Node::line).collect())
             .done();
 
         match asts.entry(uri.replacen("exec:", "exec:stdout:", 1)) {
@@ -233,7 +233,7 @@ pub async fn exec(
 
     if let Artifact::Plaintext(_, content) = &stderr_artifact {
         let node = NodeBuilder::root()
-            .add_section(content.split('\n').map(Node::new_line).collect())
+            .add_section(content.split('\n').map(Node::line).collect())
             .done();
 
         match asts.entry(uri.replacen("exec:", "exec:stderr:", 1)) {
@@ -292,7 +292,7 @@ pub async fn load(
 
     let node = match &artifact {
         Artifact::Plaintext(_, content) => NodeBuilder::root()
-            .add_section(content.split('\n').map(Node::new_line).collect())
+            .add_section(content.split('\n').map(Node::line).collect())
             .done(),
         _ => todo!(),
     };
