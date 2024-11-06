@@ -27,6 +27,7 @@ derive_builder = "0.20.2"
 either = "1.13.0"
 env_logger = "0.11.3"
 futures = "0.3.30"
+htmlize = "1.0.5"
 log = { version = "0.4.21", features = ["kv"] }
 pest = "2.7.6"
 pest_derive = { version = "2.7.6", features = ["std", "grammar-extras"] }
