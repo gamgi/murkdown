@@ -1,0 +1,3 @@
+bin.name = "md"
+args = "--output . --format markdown build file.md"
+stderr = ""

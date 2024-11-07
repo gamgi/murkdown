@@ -55,7 +55,7 @@ fn compile_recusive<'a>(
                         assert_eq!(section.rule, parser::Rule::Section);
                         if let Some(children) = section.children.as_mut() {
                             // fall through Ellipsis and only render Section contents
-                            out.push_str(&compile_recusive(children, ctx, deps, lang, &base_path)?);
+                            out.push_str(&compile_recusive(children, ctx, deps, lang, base_path)?);
                         }
                     }
                 }

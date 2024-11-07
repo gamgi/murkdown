@@ -22,6 +22,22 @@ COMPILE RULES:
 ^[...]$
   PUSH join "\n"
 
+/* root code section */
+^[...] [SEC...] [...CODE...] [SEC...]$
+  WRITE "```\n"
+  YIELD
+  WRITE "\n```"
+  WRITE indent
+
+/* code section */
+[...CODE...] [SEC...]$
+  WRITEALL prefix
+  WRITE " ```\n"
+  YIELD
+  WRITE "\n"
+  WRITEALL prefix
+  WRITE " ```\n"
+
 /* callout block */
 [...TIP...]$
   PUSH prefix "\m"
@@ -30,7 +46,11 @@ COMPILE RULES:
   YIELD
   POP prefix
 
-/* root level block */
+/* code block */
+[...CODE...]$
+  YIELD
+
+/* root block */
 ^[...] [SEC...] [...]$
   PUSH prefix "\m"
   YIELD
@@ -48,7 +68,19 @@ COMPILE RULES:
   YIELD
   POP prefix
 
-/* root level line */
+/* root code line */
+^[...] [SEC...] [...CODE...] [SEC...] LINE$
+  IS UNESCAPED_VALUE
+  WRITEALL prefix
+  WRITE "\v"
+
+/* code line */
+[...CODE...] [SEC...] LINE$
+  IS UNESCAPED_VALUE
+  WRITEALL prefix
+  WRITE " \v"
+
+/* root line */
 ^[...] [SEC...] LINE$
   WRITE prefix
   WRITE "\v"
