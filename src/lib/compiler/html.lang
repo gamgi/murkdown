@@ -3,7 +3,8 @@ PREPROCESS RULES:
 [LIST] [SEC...]$
   NOOP
 
-[CODE...] [SEC...]$
+/* code section */
+[...CODE...] [SEC...]$
   NOOP
 
 [SEC...]$
@@ -14,21 +15,30 @@ COMPILE RULES:
 ^[...]$
   PUSH join "\n"
 
+/* root code section */
+^[...] [SEC...] [...CODE...] [SEC...]$
+  WRITE indent
+  WRITE "<pre><code data-noescape data-line-numbers>"
+  YIELD
+  WRITE "\n"
+  WRITE indent
+  WRITE "</code></pre>"
+
+/* code section */
+[...CODE...] [SEC...]$
+  WRITE indent
+  WRITE "<pre><code data-noescape data-line-numbers>"
+  YIELD
+  WRITE "\n"
+  WRITE "</code></pre>"
+
 /* section */
 [SEC...]$
   NOOP
 
-[CODE...]$
-  WRITE indent
-  WRITE "<pre><code data-noescape data-language-$language data-line-numbers>"
-  SWAP prefix prefix_
-  SWAP indent indent_
+/* code block */
+[...CODE...]$
   YIELD
-  SWAP prefix prefix_
-  SWAP indent indent_
-  WRITE "\n"
-  WRITE indent
-  WRITE "</code></pre>"
 
 /* heading block */
 [...]( [SEC...] [...HEADING...]){3}$
@@ -77,8 +87,8 @@ COMPILE RULES:
 
 /* paragraph */
 [PAR...]$
-  WRITE "<p>\n"
   WRITE indent
+  WRITE "<p>\n"
   PUSH indent "  "
   YIELD
   POP indent
@@ -95,6 +105,12 @@ COMPILE RULES:
   POP indent
   WRITE indent
   WRITE "</div>"
+
+/* code line */
+[...CODE...] [SEC...] LINE$
+  WRITEALL prefix
+  WRITE "\v"
+  WRITEALL suffix
 
 /* line */
 LINE$
