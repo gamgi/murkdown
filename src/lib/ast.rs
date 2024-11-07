@@ -49,8 +49,11 @@ impl Node {
             .unwrap()
     }
 
-    pub fn ellipsis() -> Self {
-        NodeBuilder::new(Rule::Ellipsis).build().unwrap()
+    pub fn ellipsis(pointer: Option<Pointer>) -> Self {
+        NodeBuilder::new(Rule::Ellipsis)
+            .pointer(pointer)
+            .build()
+            .unwrap()
     }
 
     pub fn add_prop(&mut self, key: &str, value: Arc<str>) {
@@ -77,6 +80,7 @@ impl Node {
             true => String::new(),
             false => format!("{prefix} "),
         };
+
         let _ = match self.rule {
             Rule::Root => write!(&mut result, "[{}]", headers),
             Rule::Block => write!(&mut result, "[{}]", headers),

@@ -178,9 +178,7 @@ fn preprocess_includes(
         // add pointer to node
         let pointer = Some(Pointer(Arc::downgrade(arc)));
         if let Some(children) = node.children.as_mut() {
-            if node.rule == Rule::Section {
-                todo!();
-            } else if let Some(node) = get_ellipsis_node_recursive(children.as_mut_slice()) {
+            if let Some(node) = get_ellipsis_node_recursive(children.as_mut_slice()) {
                 node.pointer = pointer;
             } else {
                 node.pointer = pointer;
@@ -522,14 +520,14 @@ mod tests {
                 Node::line("foo"),
                 Node::line("bar"),
                 Node::line("baz"),
-                Node::ellipsis(),
+                Node::ellipsis(None),
                 Node::line("foo"),
                 Node::line("bar"),
-                Node::ellipsis(),
+                Node::ellipsis(None),
                 Node::line(""),
                 Node::line("foo"),
                 Node::line(""),
-                Node::ellipsis(),
+                Node::ellipsis(None),
                 Node::line("bar"),
             ])
             .done();
@@ -543,13 +541,13 @@ mod tests {
             children,
             &vec![
                 Node::paragraph(&["foo", "bar", "baz"]),
-                Node::ellipsis(),
+                Node::ellipsis(None),
                 Node::paragraph(&["foo", "bar"]),
-                Node::ellipsis(),
+                Node::ellipsis(None),
                 Node::line(""),
                 Node::paragraph(&["foo"]),
                 Node::line(""),
-                Node::ellipsis(),
+                Node::ellipsis(None),
                 Node::paragraph(&["bar"]),
             ]
         );

@@ -45,9 +45,25 @@ fn compile_recusive<'a>(
 
         if let Some(Pointer(weak)) = &node.pointer {
             let mutex = weak.upgrade().unwrap();
-            let mut node = mutex.lock().unwrap();
-            if let Some(children) = node.children.as_mut() {
-                out.push_str(&compile_recusive(children, ctx, deps, lang, &path)?);
+            if let parser::Rule::Ellipsis = node.rule {
+                // NOTE: skip block node
+                let mut block = mutex.lock().unwrap();
+                assert_eq!(block.rule, parser::Rule::Block);
+                if let Some(children) = block.children.as_mut() {
+                    // NOTE: skip section node
+                    for section in children {
+                        assert_eq!(section.rule, parser::Rule::Section);
+                        if let Some(children) = section.children.as_mut() {
+                            // fall through Ellipsis and only render Section contents
+                            out.push_str(&compile_recusive(children, ctx, deps, lang, &base_path)?);
+                        }
+                    }
+                }
+            } else {
+                let mut node = mutex.lock().expect("poisoned or deadlack");
+                if let Some(children) = node.children.as_mut() {
+                    out.push_str(&compile_recusive(children, ctx, deps, lang, &path)?);
+                }
             }
         } else if let Some(children) = node.children.as_mut() {
             out.push_str(&compile_recusive(children, ctx, deps, lang, &path)?);
@@ -70,7 +86,10 @@ fn compile_recusive<'a>(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
+
     use indoc::indoc;
+    use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::ast::NodeBuilder;
@@ -149,5 +168,58 @@ mod tests {
 
         let result = compile(&mut node, lang.as_ref()).unwrap();
         assert_eq!(&result, "&lt;br /&gt;");
+    }
+
+    #[test]
+    fn test_compile_skips_ellipsis_block_and_section_nodes() {
+        let lang = Lang::new(indoc! {
+            r#"
+            COMPILE RULES:
+            ^[]$
+              NOOP
+            ^[] [SEC]$
+              NOOP
+            [SEC]$
+              WRITE "  section start\n"
+              YIELD
+              WRITE "  section end\n"
+            [...]$
+              WRITE "block start\n"
+              YIELD
+              WRITE "block end\n"
+            [SEC] LINE$
+              WRITE "    \v\n"
+            "#
+        })
+        .ok();
+        let mutex = Mutex::new(
+            NodeBuilder::block(">")
+                .add_prop(("id".into(), "includeme".into()))
+                .add_section(vec![Node::line("hello")])
+                .done(),
+        );
+        let arc = Arc::new(mutex);
+        let pointer = Pointer(Arc::downgrade(&arc));
+        let mut node = NodeBuilder::root()
+            .add_section(vec![])
+            .add_section(vec![NodeBuilder::block(">")
+                .add_prop(("src".into(), "includeme".into()))
+                .add_section(vec![Node::ellipsis(Some(pointer)), Node::line("world")])
+                .done()])
+            .done();
+
+        let result = compile(&mut node, lang.as_ref()).unwrap();
+        assert_eq!(
+            &result,
+            indoc! {r#"
+            block start
+              section start
+                hello
+                world
+              section end
+            block end
+            "#
+            }
+        );
     }
 }
