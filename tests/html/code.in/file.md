@@ -11,7 +11,7 @@ Verbatim code can be placed in blocks, like this:
 
 The code can then be referenced in future blocks.
 
-> [!CODE](src="fibonacci.py" language="python")
+> [!CODE](src="fibonacci.py" language="shell")
 > #!/bin/python
 > ...
 >

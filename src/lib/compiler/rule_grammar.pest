@@ -22,7 +22,7 @@ MediaType   =@{ ASCII_ALPHA+ ~ "/" ~ ASCII_ALPHA+ ~ (";" ~ ASCII_ALPHA+ ~ "=" ~ 
 File        =@{ Str }
 URIPath     = { Str }
 PropRef     =@{ StackRef }
-Str         = { (!(NEWLINE | "\"") ~ ("\\\"" | ANY_LETTER))+ }
+Str         = { (!(NEWLINE | "\"") ~ ("\\\"" | ANY_LETTER))* }
 Int         = { ASCII_DIGIT+ }
 StackRef    = { (!(NEWLINE | WHITE_SPACE | "\\") ~ ANY_LETTER )+ }
 

@@ -18,7 +18,7 @@ COMPILE RULES:
 /* root code section */
 ^[...] [SEC...] [...CODE...] [SEC...]$
   WRITE indent
-  WRITE "<pre><code data-noescape data-line-numbers>"
+  WRITE "<pre><code data-noescape data-language-$language data-line-numbers>"
   YIELD
   WRITE "\n"
   WRITE indent
@@ -27,7 +27,7 @@ COMPILE RULES:
 /* code section */
 [...CODE...] [SEC...]$
   WRITE indent
-  WRITE "<pre><code data-noescape data-line-numbers>"
+  WRITE "<pre><code data-noescape data-language-$language data-line-numbers>"
   YIELD
   WRITE "\n"
   WRITE "</code></pre>"
@@ -38,7 +38,9 @@ COMPILE RULES:
 
 /* code block */
 [...CODE...]$
+  SET language "$language"
   YIELD
+  SET language ""
 
 /* heading block */
 [...]( [SEC...] [...HEADING...]){3}$

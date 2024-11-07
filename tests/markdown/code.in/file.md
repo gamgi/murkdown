@@ -5,13 +5,13 @@ Verbatim code can be placed in blocks, like this:
 >
 > def fib(n):
 >   if n < 2:
->      return n
+>     return n
 >   else:
 >     return fib(n-1) + fib(n-2)
 
 The code can then be referenced in future blocks.
 
-> [!CODE](src="fibonacci.py" language="python")
+> [!CODE](src="fibonacci.py" language="shell")
 > #!/bin/python
 > ...
 >

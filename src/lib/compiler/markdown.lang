@@ -24,7 +24,7 @@ COMPILE RULES:
 
 /* root code section */
 ^[...] [SEC...] [...CODE...] [SEC...]$
-  WRITE "```\n"
+  WRITE "```$language\n"
   YIELD
   WRITE "\n```"
   WRITE indent
@@ -32,7 +32,7 @@ COMPILE RULES:
 /* code section */
 [...CODE...] [SEC...]$
   WRITEALL prefix
-  WRITE " ```\n"
+  WRITE " ```$language\n"
   YIELD
   WRITE "\n"
   WRITEALL prefix
@@ -48,7 +48,9 @@ COMPILE RULES:
 
 /* code block */
 [...CODE...]$
+  SET language "$language"
   YIELD
+  SET language ""
 
 /* root block */
 ^[...] [SEC...] [...]$
