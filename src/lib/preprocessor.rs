@@ -46,13 +46,13 @@ fn preprocess_recursive<'a>(
     match node.rule {
         Rule::RootA | Rule::RootB => {
             preprocess_headers(node);
-            preprocess_ids(node, asts, context);
             preprocess_includes(node, asts, locs, context, deps);
+            preprocess_ids(node, asts, context);
         }
         Rule::Block => {
             preprocess_headers(node);
-            preprocess_ids(node, asts, context);
             preprocess_includes(node, asts, locs, context, deps);
+            preprocess_ids(node, asts, context);
         }
         Rule::Section => {
             preprocess_paragraphs(node, &settings);
@@ -109,23 +109,33 @@ fn preprocess_ids(node: &mut Node, asts: &mut AstMap, context: &str) {
     if let Some(id) = node.find_prop("id") {
         let uri = format!("parse:{context}#{id}");
 
-        // pull node out and replace with new
-        let mut new = node.clone();
-        new.children = None;
+        if let Some(Pointer(weak)) = &node.pointer {
+            // insert existing pointer node to asts at uri
+            let arc = weak.upgrade().unwrap();
+            match asts.entry(uri) {
+                Entry::Occupied(_) => todo!("duplicate id"),
+                Entry::Vacant(r) => &*r.insert(arc),
+            };
+        } else {
+            // pull node out and replace with new
+            let mut new = node.clone();
+            new.children = None;
+            let old = std::mem::replace(node, new);
 
-        let old = std::mem::replace(node, new);
-        let arc = match asts.entry(uri) {
-            Entry::Occupied(r) => {
-                let mut mutex = r.get().lock().expect("poisoned lock");
-                *mutex = old;
-                &r.get().clone()
-            }
-            Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(old))),
-        };
+            // insert old node to asts at uri
+            let arc = match asts.entry(uri) {
+                Entry::Occupied(r) => {
+                    let mut mutex = r.get().lock().expect("poisoned lock");
+                    *mutex = old;
+                    &r.get().clone()
+                }
+                Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(old))),
+            };
 
-        // add pointer to new node
-        let pointer = Pointer(Arc::downgrade(arc));
-        node.pointer = Some(pointer);
+            // add pointer to new node
+            let pointer = Pointer(Arc::downgrade(arc));
+            node.pointer = Some(pointer);
+        }
     }
 }
 
