@@ -44,7 +44,7 @@ fn preprocess_recursive<'a>(
     lang.evaluate(&mut instructions, ctx, deps, node, &settings)?;
 
     match node.rule {
-        Rule::Root => {
+        Rule::RootA | Rule::RootB => {
             preprocess_headers(node);
             preprocess_ids(node, asts, context);
             preprocess_includes(node, asts, locs, context, deps);
@@ -89,6 +89,13 @@ fn preprocess_headers(node: &mut Node) {
         Some("*") => {
             let headers = node.headers.get_or_insert_with(Default::default);
             let header = Arc::from("LIST");
+            if !headers.contains(&header) {
+                headers.push(header);
+            }
+        }
+        Some("   ") => {
+            let headers = node.headers.get_or_insert_with(Default::default);
+            let header = Arc::from("CODE");
             if !headers.contains(&header) {
                 headers.push(header);
             }

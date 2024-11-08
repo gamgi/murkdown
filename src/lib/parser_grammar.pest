@@ -1,17 +1,26 @@
-// Blocks
-Root            =  { SOI ~ RootHeader? ~ RootBlock* ~ EOI }
+// Roots
+RootA            =  { SOI ~ RootHeader? ~ RootBlock*  ~ EOI }
+RootB            =  { SOI ~ RootHeader? ~ RootBlockB* ~ EOI } // variant b supports four-space root block
 
-Control         = _{ Block }
+// Blocks
+Control         = _{ &(BLOCK_START ~ (ShortBlock_ | LongBlocks_)) ~ Block }
+ControlB        = _{                                                Block }
 Content         = _{ ("\\" ~ &STOP | !STOP) ~ (Ellipsis | Line) ~ NEWLINE | (EllipsisEOI | LineEOI) }
 
+Block           =  {
+                     (BLOCK_START_B     ~ !(NEWLINE | EOI) ~ (ShortBlock_ | LongBlocksB_)) |
+                     (PUSH(BLOCK_START) ~ !(NEWLINE | EOI) ~ (ShortBlock_ | LongBlocks_) ~ DROP)
+                   }
 
-Block           =  { PUSH(BLOCK_START) ~ !(NEWLINE | EOI) ~ (ShortBlock_ | LongBlocks_) ~ DROP }
-LongBlocks_     = _{ (BlockHeader ~ (NEWLINE | EOI) ~ CONTROL_INDENT?)? ~ LongBlock? ~ (CONTROL_INDENT ~ LongBlock)* }
+LongBlocks_     = _{ (BlockHeader ~ (NEWLINE | EOI) ~ CONTROL_INDENT?)? ~ LongBlock? ~ (CONTROL_INDENT ~ LongBlock )* }
+LongBlocksB_    = _{ (BlockHeader ~ (NEWLINE | EOI) ~ "   "          )? ~ LongBlockB ~ ("   "          ~ LongBlockB)* }
 ShortBlock_     = _{  BlockHeader                                       ~ ShortBlock }
 
-RootBlock       =  { (        SectHeader | Control |         Content) ~ (CONTROL_INDENT ~ Control | CONTENT_INDENT ~ Content)* }
-LongBlock       =  { (SPACE ~ SectHeader | Control | SPACE ~ Content) ~ (CONTROL_INDENT ~ Control | CONTENT_INDENT ~ Content)* }
-ShortBlock      =  { (                               SPACE ~ Content) }
+RootBlock       =  { (        SectHeader | Control  |         Content) ~ (CONTROL_INDENT ~ Control  | CONTENT_INDENT ~ Content)* }
+RootBlockB      =  { (        SectHeader | ControlB |         Content) ~ (CONTROL_INDENT ~ ControlB | CONTENT_INDENT ~ Content)* }
+LongBlock       =  { (SPACE ~ SectHeader | Control  | SPACE ~ Content) ~ (CONTROL_INDENT ~ Control  | CONTENT_INDENT ~ Content)* }
+LongBlockB      =  { (SPACE ~ SectHeader |            SPACE ~ Content) ~ (                            "   " ~ SPACE  ~ Content)* }
+ShortBlock      =  { (                                SPACE ~ Content) }
 
 Line            =  { ANY_LETTER* }
 LineEOI         =  { ANY_LETTER+ ~ &EOI }
@@ -25,12 +34,13 @@ BlockHeader_    = _{ "[!" ~ BLOCK_HEADER ~ "]" ~ ("("  ~ BLOCK_PROPS ~ ")")? }
 SectHeader_     = _{ "[~" ~ SECT_HEADER  ~ "]" ~ ("("  ~ BLOCK_PROPS ~ ")")? }
 
 BLOCK_START     =  { "|" | ">" | "*" | "+" | "-" | "#" }
+BLOCK_START_B   =  { "   " }
 BLOCK_HEADER    =  { (!"]"          ~ ANY_LETTER)* }
 SECT_HEADER     =  { (!"]"          ~ ANY_LETTER)* }
 BLOCK_PROPS     =  { ("\\)"  | !")" ~ ANY_LETTER)* }
-BLOCK_INDENT    = _{ PEEK[..-1] ~ &BLOCK_START ~ PEEK }                      // prefix for block control
-CONTROL_INDENT  = _{ PEEK[..-1] ~ &BLOCK_START ~ PEEK          | NO_INDENT } // prefix for block control or root control
-CONTENT_INDENT  = _{ PEEK[..-1] ~ &BLOCK_START ~ PEEK ~ SPACE? | NO_INDENT } // prefix for block content or root content
+BLOCK_INDENT    = _{ PEEK[..-1] ~ &BLOCK_START ~ PEEK }  // prefix for block control
+CONTROL_INDENT  = _{ BLOCK_INDENT          | NO_INDENT } // prefix for block control or root control
+CONTENT_INDENT  = _{ BLOCK_INDENT ~ SPACE? | NO_INDENT } // prefix for block content or root content
 NO_INDENT       = _{ &PEEK_ALL ~ "" }
 STOP            = _{ SectHeader }
 

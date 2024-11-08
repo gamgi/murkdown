@@ -15,3 +15,11 @@
   <li>Create</li>
   <li>Lists</li>
 </ul>
+
+<p>
+  And use space-indented code blocks on root level.
+</p>
+
+<pre><code data-noescape data-language-$language data-line-numbers>print("hello")
+print("world")
+</code></pre>

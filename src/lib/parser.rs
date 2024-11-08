@@ -20,13 +20,13 @@ struct RawParser;
 #[allow(clippy::derivable_impls)]
 impl Default for Rule {
     fn default() -> Self {
-        Rule::Root
+        Rule::RootA
     }
 }
 
 /// Parse input to AST
 pub fn parse(input: &str) -> Result<Node, LibError> {
-    RawParser::parse(Rule::Root, input)
+    RawParser::parse(Rule::RootB, input)
         .and_then(parse_root)
         .map_err(|e| LibError::from(Box::new(e)))
 }
@@ -50,7 +50,7 @@ fn parse_recursive<'a>(
 ) -> impl Iterator<Item = Node> + 'a {
     pairs.filter_map(|pair| match pair.as_rule() {
         Rule::EOI => None,
-        Rule::Root | Rule::Block => {
+        Rule::RootA | Rule::RootB | Rule::Block => {
             let base = NodeBuilder::from(&pair);
             let mut pairs = pair.into_inner().peekable();
             let marker = take_marker(&mut pairs);
@@ -64,7 +64,11 @@ fn parse_recursive<'a>(
                 .try_props(props);
             Some(node.build().unwrap())
         }
-        Rule::RootBlock | Rule::LongBlock | Rule::ShortBlock => {
+        Rule::RootBlock
+        | Rule::RootBlockB
+        | Rule::LongBlock
+        | Rule::LongBlockB
+        | Rule::ShortBlock => {
             let base = NodeBuilder::new(Rule::Section);
             let mut pairs = pair.into_inner().peekable();
             let _ = take_marker(&mut pairs);
@@ -80,7 +84,7 @@ fn parse_recursive<'a>(
 
 fn take_marker(pairs: &mut Peekable<Pairs<'_, Rule>>) -> Option<Arc<str>> {
     pairs
-        .next_if(|p| matches!(p.as_rule(), Rule::BLOCK_START))
+        .next_if(|p| matches!(p.as_rule(), Rule::BLOCK_START | Rule::BLOCK_START_B))
         .map(|p| p.as_str().into())
 }
 

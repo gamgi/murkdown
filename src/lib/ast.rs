@@ -82,7 +82,7 @@ impl Node {
         };
 
         let _ = match self.rule {
-            Rule::Root => write!(&mut result, "[{}]", headers),
+            Rule::RootA | Rule::RootB => write!(&mut result, "[{}]", headers),
             Rule::Block => write!(&mut result, "[{}]", headers),
             Rule::Line => write!(&mut result, "LINE"),
             Rule::Section if !headers.is_empty() => write!(&mut result, "[SEC {headers}]"),
@@ -104,7 +104,7 @@ impl NodeBuilder {
     }
 
     pub fn root() -> Self {
-        Self::new(Rule::Root)
+        Self::new(Rule::RootA)
     }
 
     pub fn block(marker: &'static str) -> Self {
@@ -139,7 +139,7 @@ impl From<&Pair<'_, Rule>> for NodeBuilder {
             r => r,
         };
         let is_line = matches!(rule, Rule::Line);
-        let is_block = matches!(rule, Rule::Block | Rule::Root);
+        let is_block = matches!(rule, Rule::Block | Rule::RootA | Rule::RootB);
         match pair.as_span().as_str() {
             "" if !is_line => NodeBuilder::new(rule),
             value if is_block => NodeBuilder::new(rule).marker(Some(Arc::from(value))),

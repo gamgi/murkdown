@@ -73,7 +73,8 @@ fn compile_recusive<'a>(
         let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
         out.push_str(&value);
 
-        if nodes.peek().is_some() || node.rule == parser::Rule::Root {
+        if nodes.peek().is_some() || matches!(node.rule, parser::Rule::RootA | parser::Rule::RootB)
+        {
             if let Some(joins) = ctx.stacks.get("join") {
                 if let Some(last) = joins.last() {
                     out.push_str(last);

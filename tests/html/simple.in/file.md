@@ -9,3 +9,8 @@ You can write paragraphs.
 * And
 * Create
 * Lists
+
+And use space-indented code blocks on root level.
+
+    print("hello")
+    print("world")

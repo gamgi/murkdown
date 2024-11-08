@@ -23,3 +23,10 @@ You can also nest elements.
 > 
 > > A block
 > > within a block
+
+And use space-indented code blocks on root level.
+
+```$language
+print("hello")
+print("world")
+```
