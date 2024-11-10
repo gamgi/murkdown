@@ -82,12 +82,12 @@ impl Node {
         };
 
         let _ = match self.rule {
-            Rule::RootA | Rule::RootB => write!(&mut result, "[{}]", headers),
-            Rule::Block => write!(&mut result, "[{}]", headers),
+            Rule::RootA | Rule::RootB => write!(&mut result, "[ {} ]", headers),
+            Rule::Block => write!(&mut result, "[ {} ]", headers),
             Rule::Line => write!(&mut result, "LINE"),
-            Rule::Section if !headers.is_empty() => write!(&mut result, "[SEC {headers}]"),
-            Rule::Section => write!(&mut result, "[SEC]"),
-            Rule::Paragraph => write!(&mut result, "[PAR]"),
+            Rule::Section if !headers.is_empty() => write!(&mut result, "[ SEC {headers} ]"),
+            Rule::Section => write!(&mut result, "[ SEC ]"),
+            Rule::Paragraph => write!(&mut result, "[ PAR ]"),
             _ => write!(&mut result, "?"),
         };
         result
@@ -158,12 +158,12 @@ mod tests {
         let node = NodeBuilder::new(Rule::Section)
             .headers(Some(vec![Arc::from("BAR")]))
             .done();
-        assert_eq!(node.build_path("[FOO]"), "[FOO] [SEC BAR]");
+        assert_eq!(node.build_path("[ FOO ]"), "[ FOO ] [ SEC BAR ]");
     }
 
     #[test]
     fn test_build_section_path_without_headers() {
         let node = NodeBuilder::new(Rule::Section).done();
-        assert_eq!(node.build_path("[FOO]"), "[FOO] [SEC]");
+        assert_eq!(node.build_path("[ FOO ]"), "[ FOO ] [ SEC ]");
     }
 }

@@ -122,8 +122,8 @@ fn parse_recursive<'a>(
 
             let regex = Regex::new(
                 &path
-                    .replace('[', r"\[")
-                    .replace(']', r"\]")
+                    .replace('[', r"\[ ?")
+                    .replace(']', r" ?\]")
                     .replace("...", r"[^]]*"),
             )?;
 
@@ -171,7 +171,7 @@ mod tests {
         let rule = &compile_rules[0];
         let expected = LangRule {
             path: "[rule...]".to_string(),
-            regex: Regex::new(r#"\[rule[^]]*\]"#).unwrap(),
+            regex: Regex::new(r#"\[ ?rule[^]]* ?\]"#).unwrap(),
             instructions: vec![LangInstr {
                 op: "PUSH".into(),
                 args: vec![StackRef("foo".into()), Str("bar".into())],
