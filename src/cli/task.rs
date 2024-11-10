@@ -9,6 +9,7 @@ use std::{
 use data_url::DataUrl;
 use either::Either;
 use log::{debug, info, trace, warn};
+use mime2ext::mime2ext;
 use murkdown::{
     ast::{Node, NodeBuilder},
     types::{Dependency, ExecArtifact, ExecInput, LibErrorPathCtx, LocationMap, URI},
@@ -366,7 +367,11 @@ pub async fn preprocess(
             let uri = op.uri();
 
             let locs = locations.lock().expect("poisoned lock");
-            let lang = languages.get().expect("languages not loaded").get(&format);
+            let lang = languages
+                .get()
+                .expect("languages not loaded")
+                .get(&format)
+                .ok_or(AppError::unknown_language(format))?;
             let deps = preprocessor::preprocess(&mut node, &mut asts, &locs, id, lang)?;
 
             // upsert preprocessed node to ast
@@ -503,7 +508,12 @@ pub async fn compile(
     debug!("Compiling {id}");
     let mut artifacts = artifacts.lock().expect("poisoned lock");
     let ast = artifacts.get(&dep).expect("no compile dependency");
-    let lang = languages.get().expect("languages not loaded").get(&format);
+    let lang = languages
+        .get()
+        .expect("languages not loaded")
+        .get(&format)
+        .ok_or(AppError::unknown_language(format))?;
+    let media_type = lang.media_type.clone();
 
     let result = match ast.clone() {
         Artifact::Ast(mut node) => compiler::compile(&mut node, lang).unwrap(),
@@ -514,10 +524,7 @@ pub async fn compile(
         }
         _ => panic!("compiling unknown artifact"),
     };
-    artifacts.insert(
-        op.uri(),
-        Artifact::Plaintext("text/markdown".to_string(), result),
-    );
+    artifacts.insert(op.uri(), Artifact::Plaintext(media_type, result));
 
     Ok(false)
 }
@@ -533,7 +540,7 @@ pub async fn write(
         unreachable!()
     };
 
-    let content = {
+    let (ext, content) = {
         let artifacts = artifacts.lock().expect("poisoned lock");
         let result = artifacts.get(&dep).expect("no write dependency");
         if let Artifact::Plaintext(_, content) = result {
@@ -553,14 +560,17 @@ pub async fn write(
         }
 
         match result {
-            Artifact::Plaintext(_, content) => content.as_bytes().to_owned(),
-            Artifact::Binary(_, content) => content.to_owned(),
+            Artifact::Plaintext(mime, content) => (mime2ext(mime), content.as_bytes().to_owned()),
+            Artifact::Binary(mime, content) => (mime2ext(mime), content.to_owned()),
             _ => panic!("writing unknown artifact"),
         }
     };
 
     if let Output::Path(root) = output {
-        let target = root.join(&*id);
+        let target = match ext {
+            Some(ext) => root.join(&*id).with_extension(ext),
+            None => root.join(&*id),
+        };
         debug!("Writing {id} to {}", target.display());
         fs::write(&target, content)
             .await

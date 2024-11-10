@@ -16,10 +16,9 @@ pub fn preprocess(
     asts: &mut AstMap,
     locs: &LocationMap,
     context: &str,
-    lang: Option<&Lang>,
+    lang: &Lang,
 ) -> Result<HashSet<Dependency>, LibError> {
     let mut deps = HashSet::new();
-    let lang = lang.expect("language");
     let mut ctx = Context::default();
 
     preprocess_recursive(node, &mut ctx, asts, locs, context, &mut deps, lang, "")?;
@@ -371,8 +370,8 @@ mod tests {
             .done();
         let mut locs = LocationMap::default();
         locs.insert("bar".to_string(), PathBuf::from("something.txt"));
-        let lang = Some(Lang::default());
-        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
+        let lang = Lang::markdown();
+        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
@@ -393,9 +392,9 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
-        let lang = Some(Lang::default());
+        let lang = Lang::markdown();
 
-        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
+        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section
@@ -419,9 +418,9 @@ mod tests {
             .done();
         let mut locs = LocationMap::default();
         locs.insert("bar".to_string(), PathBuf::from("something.txt"));
-        let lang = Some(Lang::default());
+        let lang = Lang::markdown();
 
-        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
+        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
 
         let ast_keys = asts.keys().collect::<Vec<_>>();
         assert_eq!(ast_keys, vec!["parse:bar"]);
@@ -436,8 +435,8 @@ mod tests {
 
         let mut node = NodeBuilder::root().children(vec![block.clone()]).done();
         let mut locs = LocationMap::default();
-        let lang = Some(Lang::default());
-        preprocess(&mut node, &mut asts, &mut locs, "foo", lang.as_ref()).unwrap();
+        let lang = Lang::markdown();
+        preprocess(&mut node, &mut asts, &mut locs, "foo", &lang).unwrap();
 
         let new_block = node.children.as_ref().unwrap().first().unwrap();
         assert!(new_block.pointer.is_some());
@@ -460,10 +459,10 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
-        let lang = Some(Lang::default());
+        let lang = Lang::markdown();
         locs.insert("file.md".to_string(), PathBuf::from("file.md"));
         locs.insert("other.md".to_string(), PathBuf::from("other.md"));
-        preprocess(&mut node, &mut asts, &mut locs, "file.md", lang.as_ref()).unwrap();
+        preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
@@ -479,9 +478,9 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
-        let lang = Some(Lang::default());
+        let lang = Lang::markdown();
 
-        let deps = preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
+        let deps = preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
 
         assert_eq!(
             deps,
@@ -506,6 +505,7 @@ mod tests {
     fn test_preprocess_builds_paragraphs_but_retains_empty_lines() {
         let rules = indoc! {
             r#"
+            RULES FOR test PRODUCE text/plain
             PREPROCESS RULES:
             [SEC...]$
               IS PARAGRAPHABLE
@@ -514,8 +514,8 @@ mod tests {
         let mut asts = AstMap::default();
         let mut node = NodeBuilder::root().add_section(vec![Node::line("")]).done();
         let mut locs = LocationMap::default();
-        let lang = Lang::new(rules).ok();
-        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
+        let lang = Lang::new(rules).unwrap();
+        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let children = section.children.as_ref().unwrap();
@@ -526,6 +526,7 @@ mod tests {
     fn test_preprocess_builds_paragraphs() {
         let rules = indoc! {
             r#"
+            RULES FOR test PRODUCE text/plain
             PREPROCESS RULES:
             [SEC...]$
               IS PARAGRAPHABLE
@@ -549,8 +550,8 @@ mod tests {
             ])
             .done();
         let mut locs = LocationMap::default();
-        let lang = Lang::new(rules).ok();
-        preprocess(&mut node, &mut asts, &mut locs, "", lang.as_ref()).unwrap();
+        let lang = Lang::new(rules).unwrap();
+        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let children = section.children.as_ref().unwrap();

@@ -1,3 +1,5 @@
+RULES FOR html PRODUCE text/html
+
 PREPROCESS RULES:
 /* section */
 [LIST] [SEC...]$

@@ -64,7 +64,7 @@ pub struct Context<'a> {
 }
 
 /// Parse input to rules
-pub fn parse(input: &str) -> Result<RuleMap, LibError> {
+pub fn parse(input: &str) -> Result<(String, String, RuleMap), LibError> {
     RawRuleParser::parse(Rule::Root, input)
         .map_err(|e| LibError::from(Box::new(e)))
         .and_then(parse_root)
@@ -72,7 +72,9 @@ pub fn parse(input: &str) -> Result<RuleMap, LibError> {
 
 fn parse_root<'a>(
     mut pairs: impl Iterator<Item = Pair<'a, Rule>> + 'a,
-) -> Result<RuleMap, LibError> {
+) -> Result<(String, String, RuleMap), LibError> {
+    let mut name = String::new();
+    let mut media_type = String::new();
     let mut compile_rules = Vec::new();
     let mut preprocess_rules = Vec::new();
 
@@ -85,13 +87,15 @@ fn parse_root<'a>(
                 "PREPROCESS" => preprocess_rules.extend(parse_recursive(pairs)?),
                 section => return Err(LibError::unknown_rule_section(section)),
             }
+        } else if pair.as_rule() == Rule::Preamble {
+            let mut pairs = pair.into_inner();
+            name = pairs.next().unwrap().as_str().to_string();
+            media_type = pairs.next().unwrap().as_str().to_string();
         }
     }
 
-    Ok(HashMap::from([
-        ("COMPILE", compile_rules),
-        ("PREPROCESS", preprocess_rules),
-    ]))
+    let rules = HashMap::from([("COMPILE", compile_rules), ("PREPROCESS", preprocess_rules)]);
+    Ok((name, media_type, rules))
 }
 
 /// Walk pairs
@@ -153,6 +157,7 @@ mod tests {
     fn test_parse_rule() {
         let input = indoc! {
             r#"
+            RULES FOR test PRODUCE text/plain
             COMPILE RULES:
             [rule...]
               IS COMPOSABLE PARAGRAPHABLE

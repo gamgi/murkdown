@@ -13,13 +13,13 @@ use crate::parser;
 use crate::types::{Dependency, LibError, Pointer};
 
 /// Compile AST to string
-pub fn compile(node: &mut Node, lang: Option<&Lang>) -> Result<String, LibError> {
+pub fn compile(node: &mut Node, lang: &Lang) -> Result<String, LibError> {
     let mut ignored_deps = HashSet::new();
     compile_recusive(
         std::slice::from_mut(&mut *node),
         &mut Context::default(),
         &mut ignored_deps,
-        lang.expect("language"),
+        lang,
         "",
     )
 }
@@ -97,21 +97,21 @@ mod tests {
 
     #[test]
     fn test_compile() {
-        let lang = Some(Lang::default());
+        let lang = Lang::markdown();
         let mut node = NodeBuilder::root()
             .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
                 .add_section(vec![Node::line("foo")])
                 .done()])
             .done();
-        let result = compile(&mut node, lang.as_ref()).unwrap();
+        let result = compile(&mut node, &lang).unwrap();
 
         assert_eq!(&result, "> foo\n");
     }
 
     #[test]
     fn test_compile_nested() {
-        let lang = Some(Lang::default());
+        let lang = Lang::markdown();
         let mut node = NodeBuilder::root()
             .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
@@ -125,7 +125,7 @@ mod tests {
                 ])
                 .done()])
             .done();
-        let result = compile(&mut node, lang.as_ref()).unwrap();
+        let result = compile(&mut node, &lang).unwrap();
         assert_eq!(
             result,
             indoc! {
@@ -142,21 +142,23 @@ mod tests {
     fn test_compile_escapes_value_by_default() {
         let lang = Lang::new(indoc! {
             r#"
+            RULES FOR test PRODUCE text/plain
             COMPILE RULES:
             [SEC...] LINE$
               WRITE "\v"
             "#
         })
-        .ok();
+        .unwrap();
         let unescaped_lang = Lang::new(indoc! {
             r#"
+            RULES FOR test PRODUCE text/plain
             COMPILE RULES:
             [SEC...] LINE$
               IS UNESCAPED_VALUE
               WRITE "\v"
             "#
         })
-        .ok();
+        .unwrap();
         let mut node = NodeBuilder::root()
             .add_section(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
@@ -164,10 +166,10 @@ mod tests {
                 .done()])
             .done();
 
-        let result = compile(&mut node, unescaped_lang.as_ref()).unwrap();
+        let result = compile(&mut node, &unescaped_lang).unwrap();
         assert_eq!(&result, "<br />");
 
-        let result = compile(&mut node, lang.as_ref()).unwrap();
+        let result = compile(&mut node, &lang).unwrap();
         assert_eq!(&result, "&lt;br /&gt;");
     }
 
@@ -175,6 +177,7 @@ mod tests {
     fn test_compile_skips_ellipsis_block_and_section_nodes() {
         let lang = Lang::new(indoc! {
             r#"
+            RULES FOR test PRODUCE text/plain
             COMPILE RULES:
             ^[]$
               NOOP
@@ -192,7 +195,7 @@ mod tests {
               WRITE "    \v\n"
             "#
         })
-        .ok();
+        .unwrap();
         let mutex = Mutex::new(
             NodeBuilder::block(">")
                 .add_prop(("id".into(), "includeme".into()))
@@ -209,7 +212,7 @@ mod tests {
                 .done()])
             .done();
 
-        let result = compile(&mut node, lang.as_ref()).unwrap();
+        let result = compile(&mut node, &lang).unwrap();
         assert_eq!(
             &result,
             indoc! {r#"

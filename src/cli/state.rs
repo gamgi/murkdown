@@ -22,7 +22,7 @@ use super::{
 
 pub async fn handle(event_rx: EventRx, config: &Config) -> Result<(), AppError> {
     let state = State::new();
-    state.load_languages(config.format.as_ref().expect("language"))?;
+    state.load_languages(config.format.as_ref().expect("format"))?;
 
     handle_state(event_rx, config, state).await
 }

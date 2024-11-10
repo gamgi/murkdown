@@ -156,6 +156,8 @@ pub enum AppErrorKind {
         source_path: PathBuf,
         target_path: PathBuf,
     },
+    #[error("unknown language: {0}")]
+    UnknownLanguage(String),
     #[error(transparent)]
     Lib(#[from] LibError),
 }

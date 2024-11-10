@@ -13,15 +13,23 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct Lang {
+    pub name: String,
+    pub media_type: String,
     pub(crate) rules: RuleMap,
 }
 
 /// A set of compiler rules
 impl Lang {
     pub fn new(input: &str) -> Result<Lang, LibError> {
-        let rules = rule::parse(input)?;
+        let (name, media_type, rules) = rule::parse(input)?;
 
-        Ok(Lang { rules })
+        Ok(Lang { name, rules, media_type })
+    }
+
+    #[cfg(test)]
+    pub fn markdown() -> Self {
+        Self::new(include_str!("../../lib/compiler/markdown.lang"))
+            .expect("builtin markdown to work")
     }
 
     /// Get instructions for an AST path
@@ -207,14 +215,6 @@ fn replace<'a>(
 }
 
 #[cfg(test)]
-impl Default for Lang {
-    fn default() -> Self {
-        Self::new(include_str!("../../lib/compiler/markdown.lang"))
-            .expect("builtin markdown to work")
-    }
-}
-
-#[cfg(test)]
 mod tests {
     use indoc::indoc;
 
@@ -225,6 +225,7 @@ mod tests {
     fn test_get_instructions() {
         let input = indoc! {
             r#"
+            RULES FOR test PRODUCE text/plain
             PREPROCESS RULES:
             [SEC...]$
               IS PARAGRAPHABLE
@@ -246,6 +247,7 @@ mod tests {
     fn test_evaluate() {
         let input = indoc! {
             r#"
+            RULES FOR test PRODUCE text/plain
             COMPILE RULES:
             [rule]
               PUSH foo "hello"
@@ -272,6 +274,7 @@ mod tests {
     fn test_evaluate_props() {
         let input = indoc! {
             r#"
+            RULES FOR test PRODUCE text/plain
             COMPILE RULES:
             [rule]
               WRITE "$word "

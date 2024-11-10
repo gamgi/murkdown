@@ -1,3 +1,5 @@
+RULES FOR markdown PRODUCE text/markdown
+
 PREPROCESS RULES:
 [...DATE...]$
   EXEC "date" TO text/plain AS "date"

@@ -1,4 +1,5 @@
-Root        = { SOI ~ WHITE_SPACE* ~ Section* ~ WHITE_SPACE* ~ EOI }
+Root        = { SOI ~ NEWLINE* ~ Preamble ~ WHITE_SPACE* ~ Section* ~ WHITE_SPACE* ~ EOI }
+Preamble    = { "RULES FOR " ~ Name ~ " PRODUCE " ~ MediaType ~ NEWLINE }
 Section     = { Header ~ NEWLINE+ ~ (Rule | NEWLINE+)* }
 Header      =_{ SECTION ~ " RULES:" }
 
@@ -11,6 +12,7 @@ Rule        = { Path ~ NEWLINE ~
 Path        = { !(" " | Header) ~ ANY_LETTER+ }
 Command     = { Op ~ (" "+ ~ Args)? }
 Settings    = { "IS " ~ ANY_LETTER+ }
+Name        = { ASCII_ALPHANUMERIC+ }
 Op          = { KEYWORD }
 Args        =_{ Arg ~ (" "+ ~ Arg)* }
 Arg         =_{ "\"" ~ Str ~ "\""  | ArtifactDest | ArtifactPath | Prop | Int | StackRef }
