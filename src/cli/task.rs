@@ -572,6 +572,11 @@ pub async fn write(
             None => root.join(&*id),
         };
         debug!("Writing {id} to {}", target.display());
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent)
+                .await
+                .map_err(|err| AppError::write_error(err, parent))?;
+        }
         fs::write(&target, content)
             .await
             .map_err(|err| AppError::write_error(err, target))?;
@@ -594,6 +599,11 @@ pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
             Source::Path(path) => {
                 let target = root.join(&*id);
                 debug!("Copying {id} to {}", target.display());
+                if let Some(parent) = target.parent() {
+                    fs::create_dir_all(parent)
+                        .await
+                        .map_err(|err| AppError::write_error(err, parent))?;
+                }
                 fs::copy(path.clone(), target.clone())
                     .await
                     .map_err(|err| AppError::copy_error(err, path, target))?;
