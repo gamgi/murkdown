@@ -182,9 +182,12 @@ pub async fn exec(
         }
     }
 
-    let stdout_artifact = match String::from_utf8(result.stdout) {
-        Ok(v) => Artifact::Plaintext("text/plain".to_string(), v),
-        Err(v) => Artifact::Binary("application/octet-stream".to_string(), v.into_bytes()),
+    let stdout_artifact = match artifact.clone() {
+        ExecArtifact::Stdout(media_type) => match String::from_utf8(result.stdout) {
+            Ok(v) => Artifact::Plaintext(media_type, v),
+            Err(v) => Artifact::Binary(media_type, v.into_bytes()),
+        },
+        ExecArtifact::Path(path_buf) => todo!(),
     };
     let stderr_artifact = match String::from_utf8(result.stderr) {
         Ok(v) => Artifact::Plaintext("text/plain".to_string(), v),
