@@ -191,6 +191,10 @@ fn preprocess_includes(
             Arc::new(Mutex::new(root))
         });
 
+        if &**key == "ref" {
+            continue;
+        }
+
         // add pointer to node
         let pointer = Some(Pointer(Arc::downgrade(arc)));
         if let Some(children) = node.children.as_mut() {
@@ -361,9 +365,10 @@ mod tests {
     use crate::{ast::NodeBuilder, types::ExecArtifact};
 
     #[test]
-    fn test_preprocess_adds_pointer() {
+    fn test_preprocess_adds_pointer_to_block() {
         let mut asts = AstMap::default();
         let mut node = NodeBuilder::root()
+            // NOTE: no section
             .children(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
                 .done()])
@@ -379,12 +384,33 @@ mod tests {
     }
 
     #[test]
+    fn test_preprocess_adds_pointer_to_block_section() {
+        let mut asts = AstMap::default();
+        let mut node = NodeBuilder::root()
+            .add_section(vec![NodeBuilder::block(">")
+                .add_prop(("src".into(), "bar".into()))
+                .done()])
+            .done();
+        let mut locs = LocationMap::default();
+        locs.insert("bar".to_string(), PathBuf::from("something.txt"));
+        let lang = Lang::markdown();
+        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+
+        let section = node.children.as_ref().unwrap().first().unwrap();
+        let block = section.children.as_ref().unwrap().first().unwrap();
+        let block_section = block.children.as_ref().unwrap().first().unwrap();
+
+        assert_eq!(block_section.rule, Rule::Section);
+        assert!(block_section.pointer.is_some());
+    }
+
+    #[test]
     fn test_preprocess_adds_pointer_at_ellipsis() {
         let mut asts = AstMap::default();
         let mut node = NodeBuilder::root()
             .children(vec![NodeBuilder::block(">")
                 .add_prop(("src".into(), "bar".into()))
-                .children(vec![
+                .add_section(vec![
                     Node::line("foo"),
                     NodeBuilder::new(Rule::Ellipsis).done(),
                     Node::line("baz"),
@@ -396,8 +422,9 @@ mod tests {
 
         preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
 
-        let section = node.children.as_ref().unwrap().first().unwrap();
-        let block = section
+        let block = node.children.as_ref().unwrap().first().unwrap();
+        let section = block.children.as_ref().unwrap().first().unwrap();
+        let ellipsis = section
             .children
             .as_ref()
             .unwrap()
@@ -405,7 +432,27 @@ mod tests {
             .nth(1)
             .unwrap();
 
-        assert!(block.pointer.is_some());
+        assert_eq!(ellipsis.rule, Rule::Ellipsis);
+        assert!(ellipsis.pointer.is_some());
+    }
+
+    #[test]
+    fn test_preprocess_does_not_add_pointer_for_ref() {
+        let mut asts = AstMap::default();
+        let mut node = NodeBuilder::root()
+            .add_section(vec![NodeBuilder::block(">")
+                .add_prop(("ref".into(), "bar".into()))
+                .done()])
+            .done();
+        let mut locs = LocationMap::default();
+        let lang = Lang::markdown();
+        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+
+        let section = node.children.as_ref().unwrap().first().unwrap();
+        let block = section.children.as_ref().unwrap().first().unwrap();
+
+        assert_eq!(block.rule, Rule::Block);
+        assert!(block.pointer.is_none());
     }
 
     #[test]
