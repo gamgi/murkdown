@@ -177,6 +177,7 @@ mod tests {
             [rule...]
               IS COMPOSABLE PARAGRAPHABLE REF-BY-COPY SRC-BY-EXEC
               PUSH foo "bar"
+              WRITE "this=\"that\"\n"
             "#
         };
         let lang = Lang::new(input).unwrap();
@@ -187,10 +188,16 @@ mod tests {
         let expected = LangRule {
             path: "[rule...]".to_string(),
             regex: Regex::new(r#"\[ ?rule[^]]* ?\]"#).unwrap(),
-            instructions: vec![LangInstr {
-                op: "PUSH".into(),
-                args: vec![StackRef("foo".into()), Str("bar".into())],
-            }],
+            instructions: vec![
+                LangInstr {
+                    op: "PUSH".into(),
+                    args: vec![StackRef("foo".into()), Str("bar".into())],
+                },
+                LangInstr {
+                    op: "WRITE".into(),
+                    args: vec![Str(r#"this=\"that\"\n"#.into())],
+                },
+            ],
             settings: LangSettings {
                 is_composable: true,
                 is_paragraphable: true,

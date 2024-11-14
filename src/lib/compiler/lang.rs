@@ -192,6 +192,7 @@ fn replace<'a>(
     };
 
     let mut result = template
+        .replace(r#"\""#, "\"")
         .replace(r#"\v"#, value.as_deref().unwrap_or_default())
         .replace(r#"\m"#, node.marker.as_deref().unwrap_or_default())
         .replace(r#"\n"#, "\n");
