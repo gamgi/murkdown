@@ -115,3 +115,63 @@ fn take_props(pairs: &mut Peekable<Pairs<'_, Rule>>) -> Result<Option<Props>, ()
         })
         .transpose()
 }
+
+#[cfg(test)]
+mod tests {
+    use indoc::indoc;
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_parse_short_block() {
+        let input = indoc! {
+            r#"
+            foo
+            > [!IMAGE](src="foo.png") bar
+            baz
+            "#
+        };
+        let expected = NodeBuilder::root()
+            .add_section(vec![
+                Node::line("foo"),
+                NodeBuilder::block(">")
+                    .add_prop(("src".into(), "foo.png".into()))
+                    .headers(Some(vec!["IMAGE".into()]))
+                    .add_section(vec![Node::line("bar")])
+                    .done(),
+                Node::line("baz"),
+            ])
+            .done();
+        let ast = parse(input).unwrap();
+
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn test_parse_long_block() {
+        let input = indoc! {
+            r#"
+            foo
+            > [!IMAGE](src="foo.png")
+            > bar
+            > baz
+            qux
+            "#
+        };
+        let expected = NodeBuilder::root()
+            .add_section(vec![
+                Node::line("foo"),
+                NodeBuilder::block(">")
+                    .add_prop(("src".into(), "foo.png".into()))
+                    .headers(Some(vec!["IMAGE".into()]))
+                    .add_section(vec![Node::line("bar"), Node::line("baz")])
+                    .done(),
+                Node::line("qux"),
+            ])
+            .done();
+        let ast = parse(input).unwrap();
+
+        assert_eq!(ast, expected);
+    }
+}

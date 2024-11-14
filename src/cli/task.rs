@@ -186,7 +186,7 @@ pub async fn exec(
             Ok(v) => Artifact::Plaintext(media_type, v),
             Err(v) => Artifact::Binary(media_type, v.into_bytes()),
         },
-        ExecArtifact::Path(path_buf) => todo!(),
+        ExecArtifact::Path(_path_buf) => todo!(),
     };
     let stderr_artifact = match String::from_utf8(result.stderr) {
         Ok(v) => Artifact::Plaintext("text/plain".to_string(), v),

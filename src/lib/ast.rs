@@ -82,7 +82,9 @@ impl Node {
         };
 
         let _ = match self.rule {
+            Rule::RootA | Rule::RootB if headers.is_empty() => write!(&mut result, "[]"),
             Rule::RootA | Rule::RootB => write!(&mut result, "[ {} ]", headers),
+            Rule::Block if headers.is_empty() => write!(&mut result, "[]"),
             Rule::Block => write!(&mut result, "[ {} ]", headers),
             Rule::Line => write!(&mut result, "LINE"),
             Rule::Section if !headers.is_empty() => write!(&mut result, "[ SEC {headers} ]"),
@@ -104,7 +106,7 @@ impl NodeBuilder {
     }
 
     pub fn root() -> Self {
-        Self::new(Rule::RootA)
+        Self::new(Rule::RootB)
     }
 
     pub fn block(marker: &'static str) -> Self {
