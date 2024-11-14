@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::sync::OnceLock;
 use std::{borrow::Cow, sync::Arc};
 
 use pest::iterators::Pair;
@@ -55,6 +56,8 @@ pub struct LangSettings {
     pub is_composable: bool,
     pub is_paragraphable: bool,
     pub is_unescaped_value: bool,
+    pub default_src: Option<&'static str>,
+    pub default_ref: Option<&'static str>,
 }
 
 /// Context for evaluating a rule
@@ -103,22 +106,39 @@ fn parse_recursive<'a>(
     pairs: impl Iterator<Item = Pair<'a, Rule>>,
 ) -> Result<Vec<LangRule>, LibError> {
     let mut result = Vec::new();
+
+    static DEFAULT_SCHEMAS: OnceLock<Regex> = OnceLock::new();
+    let re = DEFAULT_SCHEMAS.get_or_init(|| Regex::new(r"(\w+)-BY-(\w+)").unwrap());
+
     for pair in pairs {
         if pair.as_rule() == Rule::Rule {
             let mut pairs = pair.into_inner().peekable();
             let path = pairs.next().unwrap().as_str().to_string();
-            let (is_composable, is_paragraphable, is_unescaped_value) =
-                match pairs.peek().unwrap().as_rule() {
-                    Rule::Settings => {
-                        let settings = pairs.next().unwrap().as_str();
-                        (
-                            settings.contains("COMPOSABLE"),
-                            settings.contains("PARAGRAPHABLE"),
-                            settings.contains("UNESCAPED_VALUE"),
-                        )
+            let settings = match pairs.peek().unwrap().as_rule() {
+                Rule::Settings => {
+                    let settings = pairs.next().unwrap().as_str();
+                    let mut default_src = None;
+                    let mut default_ref = None;
+
+                    re.captures_iter(settings).for_each(|c| {
+                        match (c.get(1).map(|k| k.as_str()), c.get(2).map(|v| v.as_str())) {
+                            (Some("SRC"), Some("EXEC")) => default_src = Some("exec"),
+                            (Some("SRC"), Some("COPY")) => default_src = Some("copy"),
+                            (Some("REF"), Some("COPY")) => default_ref = Some("copy"),
+                            (Some(key), Some(value)) => panic!("unknown default {key} {value}"),
+                            (_, _) => panic!("unknown default"),
+                        }
+                    });
+                    LangSettings {
+                        is_composable: settings.contains("COMPOSABLE"),
+                        is_paragraphable: settings.contains("PARAGRAPHABLE"),
+                        is_unescaped_value: settings.contains("UNESCAPED_VALUE"),
+                        default_src,
+                        default_ref,
                     }
-                    _ => (false, false, false),
-                };
+                }
+                _ => LangSettings::default(),
+            };
 
             let regex = Regex::new(
                 &path
@@ -133,11 +153,6 @@ fn parse_recursive<'a>(
                 let args = pairs.map(Arg::try_from).collect::<Result<_, _>>()?;
                 instructions.push(LangInstr { op, args });
             }
-            let settings = LangSettings {
-                is_composable,
-                is_paragraphable,
-                is_unescaped_value,
-            };
             result.push(LangRule { path, regex, instructions, settings });
         }
     }
@@ -160,7 +175,7 @@ mod tests {
             RULES FOR test PRODUCE text/plain
             COMPILE RULES:
             [rule...]
-              IS COMPOSABLE PARAGRAPHABLE
+              IS COMPOSABLE PARAGRAPHABLE REF-BY-COPY SRC-BY-EXEC
               PUSH foo "bar"
             "#
         };
@@ -180,6 +195,8 @@ mod tests {
                 is_composable: true,
                 is_paragraphable: true,
                 is_unescaped_value: false,
+                default_src: Some("exec"),
+                default_ref: Some("copy"),
             },
         };
         assert_eq!(rule.path, expected.path);

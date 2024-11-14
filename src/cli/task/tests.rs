@@ -164,7 +164,17 @@ async fn test_preprocess_adds_ref_operations() {
     let mut result_keys = graph.iter().map(|(v, _, _)| v).collect::<Vec<_>>();
     result_keys.sort();
 
-    assert_eq!(result_keys, [&OpId::copy("bar"), &OpId::finish()]);
+    assert_eq!(
+        result_keys,
+        [
+            &OpId::load("bar"),
+            &OpId::parse("bar"),
+            &OpId::preprocess("bar"),
+            &OpId::compile("bar"),
+            &OpId::write("bar"),
+            &OpId::finish()
+        ]
+    );
 }
 
 #[tokio::test]

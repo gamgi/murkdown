@@ -45,12 +45,12 @@ fn preprocess_recursive<'a>(
     match node.rule {
         Rule::RootA | Rule::RootB => {
             preprocess_headers(node);
-            preprocess_includes(node, asts, locs, context, deps);
+            preprocess_includes(node, asts, locs, context, deps, &settings);
             preprocess_ids(node, asts, context);
         }
         Rule::Block => {
             preprocess_headers(node);
-            preprocess_includes(node, asts, locs, context, deps);
+            preprocess_includes(node, asts, locs, context, deps, &settings);
             preprocess_ids(node, asts, context);
         }
         Rule::Section => {
@@ -145,6 +145,7 @@ fn preprocess_includes(
     locs: &LocationMap,
     context: &str,
     deps: &mut HashSet<Dependency>,
+    settings: &LangSettings,
 ) {
     let props = node
         .props
@@ -157,8 +158,10 @@ fn preprocess_includes(
         let (scheme, path) = match &**key {
             "src" => uri_or_path
                 .split_once(':')
-                .unwrap_or(("parse", uri_or_path)),
-            "ref" => uri_or_path.split_once(':').unwrap_or(("copy", uri_or_path)),
+                .unwrap_or((settings.default_src.unwrap_or("parse"), uri_or_path)),
+            "ref" => uri_or_path
+                .split_once(':')
+                .unwrap_or((settings.default_ref.unwrap_or("write"), uri_or_path)),
             _ => unreachable!(),
         };
         let (path, fragment) = path.rsplit_once('#').unwrap_or((path, ""));

@@ -2,7 +2,6 @@ use std::{
     collections::hash_map::Entry,
     fmt::Write,
     path::PathBuf,
-    str::FromStr,
     sync::{Arc, Mutex, OnceLock},
 };
 
@@ -455,7 +454,7 @@ pub async fn preprocess(
                             _ => return Err(AppError::unknown_schema(schema)),
                         }
                     }
-                    // means copy or write
+                    // means refer
                     "ref" => match schema {
                         "exec" => {
                             let id: Arc<str> = uri_path.into();
@@ -473,11 +472,23 @@ pub async fn preprocess(
                                 Operation::Finish,
                             ]);
                         }
-                        _ => {
-                            let op = Operation::Write { id };
-                            graph.add_dependency(OpId::from(&op), OpId::from_str(&uri)?);
-                            graph.insert_node_chain([op, Operation::Finish]);
+                        "write" => {
+                            let id: Arc<str> = uri_path.into();
+                            let source = locs
+                                .get(uri_path)
+                                .ok_or(AppError::file_not_found(uri_path))?
+                                .clone()
+                                .into();
+                            graph.insert_node_chain([
+                                Operation::Load { id: id.clone(), source },
+                                Operation::Parse { id: id.clone() },
+                                Operation::Preprocess { id: id.clone() },
+                                Operation::Compile { id: id.clone() },
+                                Operation::Write { id: id.clone() },
+                                Operation::Finish,
+                            ]);
                         }
+                        _ => todo!(),
                     },
                     _ => unreachable!(),
                 }
@@ -596,23 +607,28 @@ pub async fn copy(op: Operation, output: Output) -> Result<bool, AppError> {
 
     match output {
         Output::StdOut | Output::StdOutLog => {
-            debug!("Copying of {id} skipped");
+            warn!("Copying of {id} skipped since output is stdout");
         }
-        Output::Path(root) => match source {
-            Source::Path(path) => {
-                let target = root.join(&*id);
-                debug!("Copying {id} to {}", target.display());
-                if let Some(parent) = target.parent() {
-                    fs::create_dir_all(parent)
-                        .await
-                        .map_err(|err| AppError::write_error(err, parent))?;
+        Output::Path(root) => {
+            let target = root.join(&*id);
+            match source {
+                Source::Path(path) if path == target => {
+                    warn!("Copying {id} skipped since source and destination are the same");
                 }
-                fs::copy(path.clone(), target.clone())
-                    .await
-                    .map_err(|err| AppError::copy_error(err, path, target))?;
+                Source::Path(path) => {
+                    debug!("Copying {id} to {}", target.display());
+                    if let Some(parent) = target.parent() {
+                        fs::create_dir_all(parent)
+                            .await
+                            .map_err(|err| AppError::write_error(err, parent))?;
+                    }
+                    fs::copy(path.clone(), target.clone())
+                        .await
+                        .map_err(|err| AppError::copy_error(err, path, target))?;
+                }
+                Source::Url(_) => todo!(),
             }
-            Source::Url(_) => todo!(),
-        },
+        }
     }
 
     Ok(false)
