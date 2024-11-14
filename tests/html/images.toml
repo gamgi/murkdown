@@ -1,0 +1,3 @@
+bin.name = "md"
+args = "-v --output . --format html build file.md"
+stderr = ""

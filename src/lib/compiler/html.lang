@@ -1,8 +1,8 @@
 RULES FOR html PRODUCE text/html
 
 PREPROCESS RULES:
-/* section */
-[LIST] [SEC...]$
+/* list section */
+[LIST...] [SEC...]$
   NOOP
 
 /* code section */
@@ -11,6 +11,9 @@ PREPROCESS RULES:
 
 [SEC...]$
   IS PARAGRAPHABLE
+
+[...IMAGE...]$
+  IS REF-BY-COPY
 
 COMPILE RULES:
 /* root */
@@ -37,6 +40,39 @@ COMPILE RULES:
 /* section */
 [SEC...]$
   NOOP
+
+/* figure block */
+[...FIGURE...]$
+  PUSH indent "  "
+  WRITE "<figure>\n"
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITE indent
+  WRITE "</figure>"
+
+/* figure image block */
+[...FIGURE...] [SEC...] [...IMAGE...]$
+  WRITE indent
+  WRITE "<img src=\"$ref\" />\n"
+  WRITE indent
+  WRITE "\n"
+  WRITE indent
+  WRITE "<figcaption>\n"
+  PUSH indent "  "
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITE indent
+  WRITE "</figcaption>"
+
+
+/* image block */
+[...IMAGE...]$
+  WRITE indent
+  WRITE "<img src=\"$ref\" alt=\""
+  YIELD
+  WRITE "\" />"
 
 /* code block */
 [...CODE...]$
@@ -67,7 +103,7 @@ COMPILE RULES:
   POP suffix
 
 /* list */
-[LIST]$
+[LIST...]$
   PUSH indent "  "
   WRITE "<ul>\n"
   YIELD
@@ -76,10 +112,10 @@ COMPILE RULES:
   WRITE indent
   WRITE "</ul>"
 
-[LIST] [SEC...]$
+[LIST...] [SEC...]$
   YIELD
 
-[LIST] [SEC...] LINE$
+[LIST...] [SEC...] LINE$
   PUSH prefix "<li>"
   PUSH suffix "</li>"
   WRITEALL indent
