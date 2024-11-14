@@ -19,6 +19,9 @@ PREPROCESS RULES:
   SET stdin "\v"
   EXEC "plantuml -pipe -tpng" TO image/png AS "plantuml.png"
 
+[...IMAGE...]$
+  IS REF-BY-COPY
+
 COMPILE RULES:
 /* root */
 ^[...]$
@@ -39,6 +42,25 @@ COMPILE RULES:
   WRITE "\n"
   WRITEALL prefix
   WRITE " ```\n"
+
+/* figure block */
+[...FIGURE...]$
+  YIELD
+
+/* root image block*/
+^[...] [SEC...] ([ FIGURE ] [ SEC ] )?[...IMAGE...]$
+  WRITEALL prefix
+  WRITE "!["
+  YIELD
+  WRITE prefix
+  WRITE "]($ref)"
+
+/* image block */
+[...IMAGE...]$
+  WRITEALL prefix
+  WRITE " !["
+  YIELD
+  WRITE "]($ref)"
 
 /* callout block */
 [...TIP...]$
@@ -83,6 +105,10 @@ COMPILE RULES:
   IS UNESCAPED_VALUE
   WRITEALL prefix
   WRITE " \v"
+
+/* image line */
+[...IMAGE...] [SEC...] LINE$
+  WRITE "\v"
 
 /* root line */
 ^[...] [SEC...] LINE$
