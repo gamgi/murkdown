@@ -1,9 +1,10 @@
 use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use htmlize::escape_text;
+use itertools::Itertools;
 
 use super::{
-    rule::{self, Context, LangInstr, LangSettings},
+    rule::{self, Context, LangInstr, LangRule, LangSettings},
     rule_argument::Arg,
 };
 use crate::{
@@ -32,7 +33,23 @@ impl Lang {
             .expect("builtin markdown to work")
     }
 
+    /// Get rules for an AST path
+    pub(crate) fn get_rules(
+        &self,
+        stage: &'static str,
+        path: &str,
+    ) -> impl Iterator<Item = &LangRule> {
+        let rules = self.rules.get(stage);
+        let path = path.to_string();
+        rules
+            .unwrap()
+            .iter()
+            .filter(move |r| r.matches(&path))
+            .take_while_inclusive(|&v| v.settings.is_composable)
+    }
+
     /// Get instructions for an AST path
+    #[cfg(test)]
     pub(crate) fn get_instructions(
         &self,
         stage: &'static str,
@@ -242,6 +259,25 @@ mod tests {
             vec![&LangInstr { op: "NOOP".into(), args: vec![] }]
         );
         assert!(settings.is_paragraphable);
+    }
+
+    #[test]
+    fn test_get_rules() {
+        let input = indoc! {
+            r#"
+            RULES FOR test PRODUCE text/plain
+            PREPROCESS RULES:
+            [FOO] [SEC...]$
+              IS COMPOSABLE
+              NOOP
+            [SEC...]$
+              NOOP
+            "#
+        };
+        let lang = Lang::new(input).unwrap();
+
+        let rules = lang.get_rules("PREPROCESS", "[FOO] [SEC]");
+        assert_eq!(rules.count(), 2);
     }
 
     #[test]

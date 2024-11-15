@@ -37,11 +37,17 @@ fn compile_recusive<'a>(
     while let Some(node) = nodes.next() {
         let path = node.build_path(base_path);
 
-        let (mut instructions, settings) = lang.get_instructions("COMPILE", &path);
+        let rules = lang.get_rules("COMPILE", &path);
+        let mut rules_stack = Vec::new();
 
         // Evaluate pre-yield
-        let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
-        out.push_str(&value);
+        for rule in rules {
+            let mut instructions = rule.instructions.iter();
+            let settings = rule.settings;
+            let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
+            out.push_str(&value);
+            rules_stack.push((instructions, settings));
+        }
 
         if let Some(Pointer(weak)) = &node.pointer {
             let mutex = weak.upgrade().unwrap();
@@ -70,8 +76,11 @@ fn compile_recusive<'a>(
         }
 
         // Evaluate post-yield
-        let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
-        out.push_str(&value);
+        rules_stack.reverse();
+        for (mut instructions, settings) in rules_stack {
+            let value = lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
+            out.push_str(&value);
+        }
 
         if nodes.peek().is_some() || matches!(node.rule, parser::Rule::RootA | parser::Rule::RootB)
         {
@@ -133,6 +142,102 @@ mod tests {
             > foo
             > > bar
             > baz
+            "#
+            }
+        );
+    }
+
+    #[test]
+    fn test_compile_composable() {
+        let lang = Lang::new(indoc! {
+            r#"
+            RULES FOR test PRODUCE text/plain
+            COMPILE RULES:
+            [INDENTED] [SEC] LINE$
+              IS COMPOSABLE
+              WRITE "  "
+            [SEC...] LINE$
+              IS COMPOSABLE
+              WRITE "\v"
+            LINE$
+              WRITE "ish\n"
+            "#
+        })
+        .unwrap();
+        let mut node = NodeBuilder::root()
+            .add_section(vec![NodeBuilder::block(">")
+                .add_prop(("src".into(), "bar".into()))
+                .add_section(vec![
+                    Node::line("foo"),
+                    NodeBuilder::block(">")
+                        .headers(Some(vec!["INDENTED".into()]))
+                        .add_section(vec![Node::line("bar")])
+                        .done(),
+                    Node::line("baz"),
+                ])
+                .done()])
+            .done();
+        let result = compile(&mut node, &lang).unwrap();
+        assert_eq!(
+            result,
+            indoc! {
+            r#"
+            fooish
+              barish
+            bazish
+            "#
+            }
+        );
+    }
+
+    #[test]
+    fn test_compile_composable_with_yield() {
+        let lang = Lang::new(indoc! {
+            r#"
+            RULES FOR test PRODUCE text/plain
+            COMPILE RULES:
+            [...INDENTED...] [SEC]$
+              IS COMPOSABLE
+              PUSH indent "  "
+              YIELD
+              POP indent
+            [...DRAMATIC...] [SEC]$
+              IS COMPOSABLE
+              PUSH prefix "Wow! "
+              PUSH suffix "!"
+              YIELD
+              POP prefix
+              POP suffix
+            LINE$
+              WRITEALL indent
+              WRITEALL prefix
+              WRITE "\v"
+              WRITEALL suffix
+              WRITE "\n"
+            "#
+        })
+        .unwrap();
+        let mut node = NodeBuilder::root()
+            .add_section(vec![NodeBuilder::block(">")
+                .add_prop(("src".into(), "bar".into()))
+                .add_section(vec![
+                    Node::line("foo"),
+                    NodeBuilder::block(">")
+                        .headers(Some(vec!["INDENTED DRAMATIC".into()]))
+                        .add_section(vec![Node::line("bar")])
+                        .done(),
+                    Node::line("baz"),
+                ])
+                .done()])
+            .done();
+        let result = compile(&mut node, &lang).unwrap();
+        assert_eq!(
+            result,
+            indoc! {
+            r#"
+            foo
+              Wow! bar!
+            baz
             "#
             }
         );

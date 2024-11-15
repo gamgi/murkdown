@@ -37,10 +37,18 @@ fn preprocess_recursive<'a>(
     base_path: &str,
 ) -> Result<(), LibError> {
     let path = node.build_path(base_path);
-    let (mut instructions, settings) = lang.get_instructions("PREPROCESS", &path);
+    let mut rules = lang.get_rules("PREPROCESS", &path).peekable();
+    let mut rules_stack = Vec::new();
+    let mut merged_settings = rules.peek().map(|r| r.settings).unwrap_or_default();
 
     // Evaluate pre-yield
-    lang.evaluate(&mut instructions, ctx, deps, node, &settings)?;
+    for rule in rules {
+        let mut instructions = rule.instructions.iter();
+        merged_settings.merge(&rule.settings);
+        lang.evaluate(&mut instructions, &mut *ctx, deps, node, &rule.settings)?;
+        rules_stack.push((instructions, rule.settings));
+    }
+    let settings = merged_settings;
 
     match node.rule {
         Rule::RootA | Rule::RootB => {
@@ -70,7 +78,10 @@ fn preprocess_recursive<'a>(
     }
 
     // Evaluate post-yield
-    lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
+    rules_stack.reverse();
+    for (mut instructions, settings) in rules_stack {
+        lang.evaluate(&mut instructions, &mut *ctx, deps, node, &settings)?;
+    }
 
     Ok(())
 }

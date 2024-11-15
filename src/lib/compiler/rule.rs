@@ -52,12 +52,19 @@ impl Display for LangInstr {
 /// Language rule settings
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub struct LangSettings {
-    #[allow(unused)]
     pub is_composable: bool,
     pub is_paragraphable: bool,
     pub is_unescaped_value: bool,
     pub default_src: Option<&'static str>,
     pub default_ref: Option<&'static str>,
+}
+
+impl LangSettings {
+    pub fn merge(&mut self, other: &LangSettings) {
+        self.is_composable = self.is_composable || other.is_composable;
+        self.is_paragraphable = self.is_paragraphable || other.is_paragraphable;
+        self.is_unescaped_value = self.is_unescaped_value || other.is_unescaped_value;
+    }
 }
 
 /// Context for evaluating a rule
