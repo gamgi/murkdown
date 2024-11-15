@@ -34,6 +34,10 @@ COMPILE RULES:
   IS COMPOSABLE
   PUSH class "tip"
 
+[...QUOTE...]$
+  IS COMPOSABLE
+  PUSH class "quote"
+
 /* code section */
 [...CODE...] [SEC...]$
   WRITE indent
@@ -78,8 +82,15 @@ COMPILE RULES:
   YIELD
   WRITE "\" />"
 
+/* plain code block */
+[CODE]$
+  SET language "$language"
+  YIELD
+  SET language ""
+
 /* code block */
 [...CODE...]$
+  IS COMPOSABLE
   SET language "$language"
   YIELD
   SET language ""
@@ -144,7 +155,8 @@ COMPILE RULES:
 [...]$
   PUSH indent "  "
   WRITE "<div class=\""
-  WRITEALL class
+  WRITEALL class " "
+  DRAIN class
   WRITE "\">\n"
   YIELD
   WRITE "\n"

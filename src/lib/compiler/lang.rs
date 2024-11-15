@@ -75,6 +75,11 @@ impl Lang {
         for inst in instructions {
             use Arg::*;
             match (inst.op.as_str(), inst.args.as_slice()) {
+                ("DRAIN", [StackRef(stack)]) => {
+                    if let Some(stack) = ctx.stacks.get_mut(stack.as_str()) {
+                        stack.clear();
+                    }
+                }
                 ("EXEC", [Str(cmd), destination @ (MediaType(_) | File(_)), URIPath(id)]) => {
                     let cmd = replace(cmd, ctx, &*node, set).to_string();
                     let id = replace(id, ctx, &*node, set).to_string();
@@ -180,6 +185,12 @@ impl Lang {
                     let stack = ctx.stacks.get(stack.as_str());
                     if let Some(stack) = stack {
                         stack.iter().for_each(|v| out.push_str(v));
+                    }
+                }
+                ("WRITEALL", [StackRef(stack), Str(sep)]) => {
+                    let stack = ctx.stacks.get(stack.as_str());
+                    if let Some(stack) = stack {
+                        out.push_str(stack.join(sep).as_str())
                     }
                 }
                 ("YIELD", _) => {

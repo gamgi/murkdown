@@ -27,11 +27,13 @@ COMPILE RULES:
 ^[...]$
   PUSH join "\n"
 
-/* root code section */
-^[...] [SEC...] [...CODE...] [SEC...]$
+/* root plain code section */
+^[...] [SEC...] [CODE] [SEC...]$
+  WRITEALL prefix
   WRITE "```$language\n"
   YIELD
   WRITE "\n```"
+  WRITEALL prefix
   WRITE indent
 
 /* code section */
@@ -70,10 +72,18 @@ COMPILE RULES:
   YIELD
   POP prefix
 
+/* plain code block */
+[CODE]$
+  SET language "$language"
+  YIELD
+  SET language ""
+
 /* code block */
 [...CODE...]$
   SET language "$language"
+  PUSH prefix "\m"
   YIELD
+  POP prefix
   SET language ""
 
 /* root block */
@@ -94,8 +104,8 @@ COMPILE RULES:
   YIELD
   POP prefix
 
-/* root code line */
-^[...] [SEC...] [...CODE...] [SEC...] LINE$
+/* root plain code line */
+^[...] [SEC...] [CODE] [SEC...] LINE$
   IS UNESCAPED_VALUE
   WRITEALL prefix
   WRITE "\v"
