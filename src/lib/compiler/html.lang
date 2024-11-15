@@ -29,6 +29,11 @@ COMPILE RULES:
   WRITE indent
   WRITE "</code></pre>"
 
+
+[...TIP...]$
+  IS COMPOSABLE
+  PUSH class "tip"
+
 /* code section */
 [...CODE...] [SEC...]$
   WRITE indent
@@ -138,7 +143,9 @@ COMPILE RULES:
 /* block */
 [...]$
   PUSH indent "  "
-  WRITE "<div>\n"
+  WRITE "<div class=\""
+  WRITEALL class
+  WRITE "\">\n"
   YIELD
   WRITE "\n"
   POP indent

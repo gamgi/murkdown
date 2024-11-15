@@ -10,6 +10,9 @@ You can write paragraphs.
 * Create
 * Lists
 
+> [!TIP]
+> You can make callouts.
+
 And use space-indented code blocks on root level.
 
     print("hello")
