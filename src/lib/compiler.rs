@@ -36,6 +36,7 @@ fn compile_recusive<'a>(
 
     while let Some(node) = nodes.next() {
         let path = node.build_path(base_path);
+        ctx.set_parent(node);
 
         let rules = lang.get_rules("COMPILE", &path);
         let mut rules_stack = Vec::new();

@@ -26,7 +26,7 @@ You can also nest elements.
 
 And use space-indented code blocks on root level.
 
-```$language
+```
 print("hello")
 print("world")
 ```

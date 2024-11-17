@@ -37,6 +37,7 @@ fn preprocess_recursive<'a>(
     base_path: &str,
 ) -> Result<(), LibError> {
     let path = node.build_path(base_path);
+    ctx.set_parent(node);
     let mut rules = lang.get_rules("PREPROCESS", &path).peekable();
     let mut rules_stack = Vec::new();
     let mut merged_settings = rules.peek().map(|r| r.settings).unwrap_or_default();

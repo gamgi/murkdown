@@ -1,7 +1,9 @@
+use std::sync::OnceLock;
 use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use htmlize::escape_text;
 use itertools::Itertools;
+use regex::Regex;
 
 use super::{
     rule::{self, Context, LangInstr, LangRule, LangSettings},
@@ -18,6 +20,8 @@ pub struct Lang {
     pub media_type: String,
     pub(crate) rules: RuleMap,
 }
+
+static VARIABLE_RE: OnceLock<Regex> = OnceLock::new();
 
 /// A set of compiler rules
 impl Lang {
@@ -94,7 +98,8 @@ impl Lang {
                         children
                             .iter()
                             .filter_map(|n| n.value.clone())
-                            .collect::<Vec<Arc<str>>>()
+                            .map(|v| v.replace("\n", r"\n"))
+                            .collect::<Vec<_>>()
                             .join("\n")
                     });
                     deps.insert(Dependency::Exec { cmd, input, id, artifact });
@@ -210,7 +215,8 @@ fn replace<'a>(
     node: &Node,
     settings: &LangSettings,
 ) -> Cow<'a, str> {
-    if !template.contains("\\") && !template.contains("$") {
+    // template without substititions
+    if !template.contains(r"\") && !template.contains("$") {
         return Cow::Borrowed(template);
     }
 
@@ -219,16 +225,20 @@ fn replace<'a>(
         false => node.value.as_deref().map(escape_text).to_owned(),
     };
 
-    let mut result = template
-        .replace(r#"\""#, "\"")
-        .replace(r#"\v"#, value.as_deref().unwrap_or_default())
-        .replace(r#"\m"#, node.marker.as_deref().unwrap_or_default())
-        .replace(r#"\n"#, "\n");
+    // escapes
+    let mut result = template.replace(r#"\""#, "\"").replace(r"\n", "\n");
 
     // variables from props
     if template.contains("$") {
         for (key, value) in node.props.iter().flatten() {
             result = result.replace(&["$", key].concat(), value);
+        }
+    }
+
+    // variables from stacks with modifiers
+    if result.contains("$") && result.contains(":") {
+        for (key, stack) in ctx.stacks.iter() {
+            result = result.replace(&["$", key, ":j"].concat(), &stack.join(" "));
         }
     }
 
@@ -240,6 +250,28 @@ fn replace<'a>(
             }
         }
     }
+
+    // unset variables
+    if result.contains("$") {
+        let re = VARIABLE_RE.get_or_init(|| Regex::new(r"\$(\w+)(?::([j]))?").unwrap());
+        result = re.replace(&result, "").to_string();
+    }
+
+    // builtin
+    result = result
+        .replace(r"\v", value.as_deref().unwrap_or_default())
+        .replace(r"\V", ctx.parent_value.as_deref().unwrap_or_default())
+        .replace(r"\m", node.marker.as_deref().unwrap_or_default());
+
+    if result.contains(r"\h") {
+        let headers = node.headers.as_ref();
+        result = result.replace(r"\h:j", &headers.map(|h| h.join(" ")).unwrap_or_default());
+    }
+    if result.contains(r"\H") {
+        let headers = ctx.parent_headers.as_ref();
+        result = result.replace(r"\H:j", &headers.map(|h| h.join(" ")).unwrap_or_default());
+    }
+
     Cow::Owned(result)
 }
 
@@ -344,5 +376,36 @@ mod tests {
             .evaluate(&mut instructions, &mut ctx, &mut deps, &mut node, &settings)
             .unwrap();
         assert_eq!(value, "hello world");
+    }
+
+    #[test]
+    fn test_evaluate_misc() {
+        let input = indoc! {
+            r#"
+            RULES FOR test PRODUCE text/plain
+            COMPILE RULES:
+            [rule]
+              WRITE "$var\n"
+              WRITE "$var:j\n"
+              WRITE "\v and \V"
+            "#
+        };
+        let mut deps = HashSet::new();
+        let lang = Lang::new(input).unwrap();
+        let mut node = Node::default();
+        node.value = Some("value".into());
+
+        let (mut instructions, settings) = lang.get_instructions("COMPILE", "[rule]");
+        let mut ctx = Context::default();
+        ctx.parent_value = Some("parent value".into());
+        ctx.stacks
+            .entry(Arc::from("var"))
+            .or_default()
+            .extend(["foo".into(), "bar".into()]);
+
+        let value = lang
+            .evaluate(&mut instructions, &mut ctx, &mut deps, &mut node, &settings)
+            .unwrap();
+        assert_eq!(value, "bar\nfoo bar\nvalue and parent value");
     }
 }

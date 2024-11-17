@@ -8,6 +8,7 @@ use pest::Parser;
 use pest_derive::Parser;
 use regex::Regex;
 
+use crate::ast::Node;
 use crate::compiler::rule_argument::Arg;
 use crate::types::{LibError, RuleMap};
 
@@ -71,6 +72,16 @@ impl LangSettings {
 #[derive(Debug, Clone, Default)]
 pub struct Context<'a> {
     pub stacks: HashMap<Arc<str>, Vec<Cow<'a, str>>>,
+    pub parent_value: Option<Arc<str>>,
+    pub parent_headers: Option<Vec<Arc<str>>>,
+}
+
+#[allow(clippy::needless_lifetimes)]
+impl<'a> Context<'a> {
+    pub fn set_parent(&mut self, node: &Node) {
+        self.parent_value = node.value.clone();
+        self.parent_headers = node.headers.clone();
+    }
 }
 
 /// Parse input to rules
