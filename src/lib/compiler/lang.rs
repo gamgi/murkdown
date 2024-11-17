@@ -192,12 +192,6 @@ impl Lang {
                         stack.iter().for_each(|v| out.push_str(v));
                     }
                 }
-                ("WRITEALL", [StackRef(stack), Str(sep)]) => {
-                    let stack = ctx.stacks.get(stack.as_str());
-                    if let Some(stack) = stack {
-                        out.push_str(stack.join(sep).as_str())
-                    }
-                }
                 ("YIELD", _) => {
                     break;
                 }

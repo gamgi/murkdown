@@ -2,6 +2,8 @@ Images work as blocks.
 
 > [!IMAGE](ref="img1.png") This is image 1
 
+> [!QUOTE IMAGE](ref="img1.png") This is quoted image 1
+
 And in figures.
 
 > [!FIGURE]

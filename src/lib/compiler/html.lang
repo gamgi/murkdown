@@ -1,34 +1,28 @@
 RULES FOR html PRODUCE text/html
 
+/* ------------------------------------------------ */
 PREPROCESS RULES:
-/* list section */
+/* list */
 [LIST...] [SEC...]$
   NOOP
 
-/* code section */
-[...CODE...] [SEC...]$
-  NOOP
-
-[SEC...]$
-  IS PARAGRAPHABLE
-
+/* image */
 [...IMAGE...]$
   IS REF-BY-COPY
 
+/* code */
+[...CODE...] [SEC...]$
+  NOOP
+
+/* other */
+[SEC...]$
+  IS PARAGRAPHABLE
+
+/* ------------------------------------------------ */
 COMPILE RULES:
 /* root */
 ^[...]$
-  PUSH join "\n"
-
-/* root code section */
-^[...] [SEC...] [...CODE...] [SEC...]$
-  WRITE indent
-  WRITE "<pre><code data-noescape data-language-$language data-line-numbers>"
-  YIELD
-  WRITE "\n"
-  WRITE indent
-  WRITE "</code></pre>"
-
+  SET join "\n"
 
 [...TIP...]$
   IS COMPOSABLE
@@ -38,64 +32,67 @@ COMPILE RULES:
   IS COMPOSABLE
   PUSH class "quote"
 
-/* code section */
-[...CODE...] [SEC...]$
-  WRITE indent
-  WRITE "<pre><code data-noescape data-language-$language data-line-numbers>"
-  YIELD
-  WRITE "\n"
-  WRITE "</code></pre>"
-
-/* section */
-[SEC...]$
-  NOOP
-
-/* figure block */
+/* image & figure */
 [...FIGURE...]$
   PUSH indent "  "
   WRITE "<figure>\n"
   YIELD
   WRITE "\n"
   POP indent
-  WRITE indent
+  WRITEALL indent
   WRITE "</figure>"
 
-/* figure image block */
 [...FIGURE...] [SEC...] [...IMAGE...]$
-  WRITE indent
+  WRITEALL indent
   WRITE "<img src=\"$ref\" />\n"
-  WRITE indent
+  WRITEALL indent
   WRITE "\n"
-  WRITE indent
+  WRITEALL indent
   WRITE "<figcaption>\n"
   PUSH indent "  "
   YIELD
   WRITE "\n"
   POP indent
-  WRITE indent
+  WRITEALL indent
   WRITE "</figcaption>"
 
-/* image block */
 [...IMAGE...]$
-  WRITE indent
-  WRITE "<img src=\"$ref\" alt=\""
+  WRITEALL indent
+  WRITE "<img src=\"$ref\" class=\"$class:j\" alt=\""
   YIELD
   WRITE "\" />"
 
-/* plain code block */
+[...IMAGE...] LINE$
+  WRITE "\v"
+
+[...IMAGE...] [...]$
+  NOOP
+
+/* code */
 [CODE]$
   SET language "$language"
   YIELD
   SET language ""
 
-/* code block */
 [...CODE...]$
-  IS COMPOSABLE
   SET language "$language"
   YIELD
   SET language ""
 
-/* heading block */
+[...CODE...] [SEC...]$
+  WRITEALL indent
+  WRITE "<pre class=\"$class:j\"><code class=\"language-$language\">"
+  DRAIN class
+  YIELD
+  WRITE "\n"
+  WRITE "</code></pre>"
+
+[...CODE...] [SEC...] LINE$
+  WRITEALL prefix
+  WRITE "\v"
+  WRITEALL suffix
+
+/* heading */
 [...]( [SEC...] [...HEADING...]){3}$
   SET prefix "<h2>"
   SET suffix "</h2>"
@@ -118,59 +115,81 @@ COMPILE RULES:
   POP suffix
 
 /* list */
-[LIST...]$
+[...LIST...]$
+  WRITEALL indent
+  WRITE "<ul class=\"$class:j\">\n"
+  DRAIN class
   PUSH indent "  "
-  WRITE "<ul>\n"
   YIELD
   WRITE "\n"
   POP indent
-  WRITE indent
+  WRITEALL indent
   WRITE "</ul>"
 
-[LIST...] [SEC...]$
+[...LIST...] [SEC...]$
+  IS COMPOSABLE
   YIELD
 
-[LIST...] [SEC...] LINE$
+[...LIST...] [SEC...] [PAR...] ASD$
+  NOOP
+
+[...LIST...] [SEC...] [...]$
+  IS COMPOSABLE
+  WRITEALL indent
+  WRITE "<li>\n"
+  PUSH indent "  "
+  YIELD
+  POP indent
+  WRITE "\n"
+  WRITEALL indent
+  WRITE "</li>"
+
+[...LIST...] [SEC...] LINE$
+  IS COMPOSABLE
   PUSH prefix "<li>"
   PUSH suffix "</li>"
-  WRITEALL indent
-  WRITEALL prefix
-  WRITE "\v"
-  WRITEALL suffix
+  YIELD
   POP prefix
   POP suffix
 
+/* link */
+[...LINK...]$
+  IS COMPOSABLE
+  WRITEALL indent
+  WRITE "<a href=\"$href\">\n"
+  PUSH indent "  "
+  YIELD
+  POP indent
+  WRITE "\n"
+  WRITEALL indent
+  WRITE "</a>"
+
 /* paragraph */
 [PAR...]$
-  WRITE indent
+  WRITEALL indent
   WRITE "<p>\n"
   PUSH indent "  "
   YIELD
   POP indent
   WRITE "\n"
-  WRITE indent
+  WRITEALL indent
   WRITE "</p>"
 
-/* block */
+/* other */
+[SEC...]$
+  NOOP
+
 [...]$
-  PUSH indent "  "
-  WRITE "<div class=\""
-  WRITEALL class " "
+  WRITEALL indent
+  WRITE "<div class=\"$class:j\">\n"
   DRAIN class
-  WRITE "\">\n"
+  PUSH indent "  "
   YIELD
   WRITE "\n"
   POP indent
-  WRITE indent
+  WRITEALL indent
   WRITE "</div>"
 
-/* code line */
-[...CODE...] [SEC...] LINE$
-  WRITEALL prefix
-  WRITE "\v"
-  WRITEALL suffix
-
-/* line */
 LINE$
   WRITEALL indent
   WRITEALL prefix

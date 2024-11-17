@@ -13,6 +13,16 @@ You can write paragraphs.
 > [!TIP]
 > You can make callouts.
 
+You can also nest elements.
+
+> Like this:
+>* A List
+>* Nested
+>* Within a block
+>
+>> A block
+>> within a block
+
 And use space-indented code blocks on root level.
 
     print("hello")
