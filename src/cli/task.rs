@@ -1,7 +1,8 @@
 use std::{
     collections::hash_map::Entry,
     fmt::Write,
-    path::PathBuf,
+    os::unix::fs::PermissionsExt,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
 };
 
@@ -141,9 +142,10 @@ pub async fn exec(
     artifacts: Arc<Mutex<ArtifactMap>>,
 ) -> Result<bool, AppError> {
     let uri = op.uri();
-    let Operation::Exec { ref cmd, ref input, artifact, .. } = op else {
+    let Operation::Exec { ref cmd, ref input, artifact, ref id } = op else {
         unreachable!()
     };
+    debug!("Exec {id}");
 
     let (program, args) = cmd.split_once(' ').unwrap_or((cmd, ""));
 
@@ -318,6 +320,43 @@ pub async fn load(
     Ok(false)
 }
 
+/// Tangle file
+pub async fn tangle(
+    op: Operation,
+    dep: URI,
+    artifacts: Arc<Mutex<ArtifactMap>>,
+) -> Result<bool, AppError> {
+    let Operation::Tangle { id, target } = &op else {
+        unreachable!()
+    };
+    debug!("Tangling {id} to {}", target.display());
+
+    let input = {
+        let artifacts = artifacts.lock().expect("poisoned lock");
+        let ast = artifacts.get(&dep).expect("no tangle dependency");
+        match ast {
+            Artifact::Plaintext(_, input) => Some(input.to_owned()),
+            _ => panic!("tangling unknown artifact"),
+        }
+    };
+
+    match input {
+        Some(content) => {
+            fs::write(&target, content)
+                .await
+                .map_err(|err| AppError::write_error(err, target.clone()))?;
+            fs::set_permissions(target, std::fs::Permissions::from_mode(0o755))
+                .await
+                .unwrap();
+        }
+        None => {
+            todo!()
+        }
+    }
+
+    Ok(false)
+}
+
 /// Parse files to AST
 pub async fn parse(
     op: Operation,
@@ -374,7 +413,7 @@ pub async fn preprocess(
                 .expect("languages not loaded")
                 .get(&format)
                 .ok_or(AppError::unknown_language(format))?;
-            let deps = preprocessor::preprocess(&mut node, &mut asts, &locs, id, lang)?;
+            let (deps, new_asts) = preprocessor::preprocess(&mut node, &mut asts, &locs, id, lang)?;
 
             // upsert preprocessed node to ast
             let arc = match asts.entry(uri.to_string()) {
@@ -390,6 +429,13 @@ pub async fn preprocess(
             let weak = Arc::downgrade(arc);
             artifacts.insert(uri, Artifact::AstPointer(weak));
 
+            // add artifact for each new ast
+            for uri in new_asts {
+                let arc = asts.get(&uri).expect("just inserted");
+                let weak = Arc::downgrade(arc);
+                artifacts.insert(uri, Artifact::AstPointer(weak));
+            }
+
             debug!("Preprocessing {id} yielded {} dependencies", deps.len());
             let (uri_deps, exec_deps): (Vec<_>, Vec<_>) = deps
                 .into_iter()
@@ -400,37 +446,83 @@ pub async fn preprocess(
                 let Dependency::URI(kind, ref uri) = uri else {
                     unreachable!()
                 };
+                // TODO: improve and clarify resolving
                 let (schema, uri_path) = uri.split_once(':').expect("uri to have schema");
+                let (uri_path_nofragment, fragment) =
+                    uri_path.rsplit_once('#').unwrap_or((uri_path, ""));
+                let id: Arc<str> = Arc::from(uri_path_nofragment);
 
-                let (uri_path, _) = uri_path.rsplit_once('#').unwrap_or((uri_path, ""));
-                let id: Arc<str> = Arc::from(uri_path);
-                let uri = format!("{schema}:{uri_path}");
-                if graph.get_uri(&uri).is_some() {
+                if graph
+                    .get_uri(&format!("{schema}:{uri_path_nofragment}"))
+                    .is_some()
+                {
+                    trace!("Skip {uri} since {schema}:{uri_path_nofragment} is already scheduled");
+                    continue;
+                }
+
+                if graph.get_uri(uri).is_some() {
+                    trace!("Skip {uri} since it is already scheduled");
                     continue;
                 }
 
                 match kind {
-                    // means include
-                    "src" => {
-                        // NOTE: these are technically not correct, since the dependency to exec should be
+                    "src" if schema == "exec" => {
+                        // NOTE: the graph inserts are technically not correct, since the dependency to exec should be
                         // on the dependent node of current op, but we don't have a mapping for that now
-                        if schema == "exec" {
-                            graph.add_dependency(OpId::from(&op), OpId::exec(uri_path));
-                            continue;
-                        }
+
+                        let id: Arc<str> = uri_path.into();
+                        let file = PathBuf::from(uri_path);
+                        let artifact = ExecArtifact::Stdout("text/plain".to_string());
+
+                        match file.exists() {
+                            true => {
+                                trace!("Schedule exec:{id} since file exists");
+                                let cmd = format!("./{}", file.display());
+                                graph.insert_node_chain([
+                                    Operation::Exec { id, cmd, input: None, artifact },
+                                    op.clone(),
+                                ]);
+                            }
+                            false if fragment.is_empty() => panic!("unknown executable"),
+                            false => {
+                                let p = PathBuf::from(op.uri_path());
+                                let parent = match p.parent() {
+                                    Some(parent) if parent == Path::new("") => PathBuf::from("."),
+                                    Some(parent) => parent.to_path_buf(),
+                                    None => return Err(AppError::bad_path(p)),
+                                };
+                                let target = parent.join(format!("{}.tmp", fragment));
+                                let cmd = target.display().to_string();
+                                let source_uri = format!("parse:{uri_path}");
+                                trace!("Schedule exec:{id} using {}", target.display());
+
+                                graph.insert_node_chain([
+                                    Operation::CompilePlaintext { id: id.clone(), source_uri },
+                                    Operation::Tangle { id: id.clone(), target },
+                                    Operation::Exec { id, cmd, input: None, artifact },
+                                    op.clone(),
+                                ]);
+                            }
+                        };
+
+                        continue;
+                    }
+                    "src" => {
                         let source = locs
-                            .get(uri_path)
+                            .get(uri_path_nofragment)
                             .ok_or(AppError::file_not_found(uri_path))?
                             .clone()
                             .into();
                         match schema {
                             "file" => {
+                                trace!("Schedule load:{id}");
                                 graph.insert_node_chain([
                                     Operation::Load { id, source },
                                     op.clone(),
                                 ]);
                             }
                             "ast" => {
+                                trace!("Schedule parse:{id}");
                                 graph.insert_node_chain([
                                     Operation::Load { id: id.clone(), source },
                                     Operation::Parse { id },
@@ -438,6 +530,7 @@ pub async fn preprocess(
                                 ]);
                             }
                             "parse" => {
+                                trace!("Schedule preprocess:{id}");
                                 graph.insert_node_chain([
                                     Operation::Load { id: id.clone(), source },
                                     Operation::Parse { id: id.clone() },
@@ -446,6 +539,7 @@ pub async fn preprocess(
                                 ]);
                             }
                             "copy" => {
+                                trace!("Schedule copy:{id}");
                                 graph.insert_node_chain([
                                     Operation::Copy { id, source },
                                     Operation::Finish,
@@ -454,10 +548,10 @@ pub async fn preprocess(
                             _ => return Err(AppError::unknown_schema(schema)),
                         }
                     }
-                    // means refer
                     "ref" => match schema {
                         "exec" => {
                             let id: Arc<str> = uri_path.into();
+                            trace!("Schedule write:{id}");
                             graph.add_dependency(OpId::write(id.clone()), OpId::exec(uri_path));
                             graph.insert_node_chain([Operation::Write { id }, Operation::Finish]);
                         }
@@ -467,6 +561,7 @@ pub async fn preprocess(
                                 .ok_or(AppError::file_not_found(uri_path))?
                                 .clone()
                                 .into();
+                            trace!("Schedule copy:{id}");
                             graph.insert_node_chain([
                                 Operation::Copy { id, source },
                                 Operation::Finish,
@@ -474,6 +569,7 @@ pub async fn preprocess(
                         }
                         "write" => {
                             let id: Arc<str> = uri_path.into();
+                            trace!("Schedule write:{id}");
                             let source = locs
                                 .get(uri_path)
                                 .ok_or(AppError::file_not_found(uri_path))?
@@ -498,6 +594,7 @@ pub async fn preprocess(
                 let Dependency::Exec { cmd, id, input, artifact, .. } = dep else {
                     unreachable!()
                 };
+                trace!("Schedule exec:{id}");
                 let input = input.map(ExecInput::String);
                 graph.insert_node(Operation::Exec { id: id.into(), cmd, input, artifact });
             }
@@ -519,7 +616,7 @@ pub async fn compile(
     let Operation::Compile { ref id } = op else {
         unreachable!()
     };
-    debug!("Compiling {id}");
+    debug!("Compiling {id} from {dep}");
     let mut artifacts = artifacts.lock().expect("poisoned lock");
     let ast = artifacts.get(&dep).expect("no compile dependency");
     let lang = languages
@@ -527,6 +624,41 @@ pub async fn compile(
         .expect("languages not loaded")
         .get(&format)
         .ok_or(AppError::unknown_language(format))?;
+    let media_type = lang.media_type.clone();
+
+    let result = match ast.clone() {
+        Artifact::Ast(mut node) => compiler::compile(&mut node, lang).unwrap(),
+        Artifact::AstPointer(pointer) => {
+            let mutex = pointer.upgrade().unwrap();
+            let mut node = mutex.lock().unwrap();
+            compiler::compile(&mut node, lang).unwrap()
+        }
+        _ => panic!("compiling unknown artifact"),
+    };
+
+    artifacts.insert(op.uri(), Artifact::Plaintext(media_type, result));
+
+    Ok(false)
+}
+
+/// Compile AST line to string
+pub async fn compile_plaintext(
+    op: Operation,
+    dep: URI,
+    artifacts: Arc<Mutex<ArtifactMap>>,
+    languages: Arc<OnceLock<LangMap>>,
+) -> Result<bool, AppError> {
+    let Operation::CompilePlaintext { ref id, .. } = op else {
+        unreachable!()
+    };
+    debug!("Compiling {id} from {dep} to plaintext");
+    let mut artifacts = artifacts.lock().expect("poisoned lock");
+    let ast = artifacts.get(&dep).expect("no compile dependency");
+    let lang = languages
+        .get()
+        .expect("languages not loaded")
+        .get("plaintext")
+        .expect("plaintext to be defined");
     let media_type = lang.media_type.clone();
 
     let result = match ast.clone() {

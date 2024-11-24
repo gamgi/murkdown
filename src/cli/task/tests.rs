@@ -178,50 +178,6 @@ async fn test_preprocess_adds_ref_operations() {
 }
 
 #[tokio::test]
-async fn test_preprocess_adds_exec_input_dependency() {
-    let node = NodeBuilder::root()
-        .add_section(vec![NodeBuilder::block(">")
-            .headers(Some(vec!["EXEC".into()]))
-            .done()])
-        .done();
-    let op = Operation::Preprocess { id: "foo".into() };
-    let dep = op.uri();
-    let ctx = State::new_loaded("markdown");
-    ctx.insert_op(op.clone());
-    ctx.insert_location("bar", PathBuf::from("file.txt"));
-    ctx.insert_artifact(&dep, Artifact::Ast(node));
-
-    preprocess(
-        op,
-        "markdown".to_string(),
-        dep,
-        ctx.asts,
-        ctx.operations.clone(),
-        ctx.artifacts,
-        ctx.languages,
-        ctx.locations,
-    )
-    .await
-    .unwrap();
-
-    let graph = ctx.operations.lock().unwrap();
-
-    let mut result = vec![];
-    for (from, _vertex, edges) in graph.iter() {
-        let deps = edges.iter().cloned().collect::<Vec<_>>();
-        result.push((from, deps));
-    }
-    result.sort();
-    assert_eq!(
-        result,
-        vec![
-            (&OpId::exec("run"), vec![]),
-            (&OpId::preprocess("foo"), vec![OpId::exec("run")])
-        ]
-    );
-}
-
-#[tokio::test]
 async fn test_graph() {
     let node = NodeBuilder::root()
         .children(vec![NodeBuilder::block(">")

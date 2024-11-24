@@ -88,10 +88,12 @@ impl State {
             // builtin
             let markdown = include_str!("../lib/compiler/markdown.lang");
             let html = include_str!("../lib/compiler/html.lang");
+            let plaintext = include_str!("../lib/compiler/plaintext.lang");
 
             let mut languages = HashMap::from([
                 ("markdown".to_string(), Lang::new(markdown)?),
                 ("html".to_string(), Lang::new(html)?),
+                ("plaintext".to_string(), Lang::new(plaintext)?),
             ]);
 
             // custom

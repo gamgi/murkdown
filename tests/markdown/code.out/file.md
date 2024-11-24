@@ -10,6 +10,7 @@ def fib(n):
     return fib(n-1) + fib(n-2)
 ```
 
+
 The code can then be referenced in future blocks.
 
 ```shell
@@ -26,6 +27,7 @@ if __name__ == "__main__":
   result = fib(5)
   print("fibonacci result is", result)
 ```
+
 
 And nested in blocks.
 

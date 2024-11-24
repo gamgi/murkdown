@@ -1,4 +1,5 @@
 use std::fmt::{self, Display, Formatter};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -15,9 +16,11 @@ pub enum Op {
     Gather,
     Exec,
     Load,
+    Tangle,
     Parse,
     Preprocess,
     Compile,
+    CompilePlaintext,
     Write,
     Copy,
     Graph,
@@ -31,9 +34,11 @@ impl From<&Operation> for Op {
             Gather { .. } => Op::Gather,
             Exec { .. } => Op::Exec,
             Load { .. } => Op::Load,
+            Tangle { .. } => Op::Tangle,
             Parse { .. } => Op::Parse,
             Preprocess { .. } => Op::Preprocess,
             Compile { .. } => Op::Compile,
+            CompilePlaintext { .. } => Op::CompilePlaintext,
             Write { .. } => Op::Write,
             Copy { .. } => Op::Copy,
             Graph { .. } => Op::Graph,
@@ -61,6 +66,10 @@ pub enum Operation {
         id: Id,
         source: Source,
     },
+    Tangle {
+        id: Id,
+        target: PathBuf,
+    },
     Parse {
         id: Id,
     },
@@ -69,6 +78,10 @@ pub enum Operation {
     },
     Compile {
         id: Id,
+    },
+    CompilePlaintext {
+        id: Id,
+        source_uri: URI,
     },
     Write {
         id: Id,
@@ -84,8 +97,12 @@ pub enum Operation {
 }
 
 impl Operation {
-    pub fn uri(&self) -> String {
+    pub fn uri(&self) -> URI {
         OpId::from(self).uri()
+    }
+
+    pub fn uri_path(&self) -> URI {
+        OpId::from(self).uri_path()
     }
 }
 
@@ -95,8 +112,10 @@ impl Display for Operation {
             Operation::Gather { .. } => write!(f, "Gather"),
             Operation::Exec { id, .. } => write!(f, "Exec {}", id),
             Operation::Load { id, .. } => write!(f, "Load {}", id),
+            Operation::Tangle { id, .. } => write!(f, "Tangle {}", id),
             Operation::Parse { id, .. } => write!(f, "Parse {}", id),
             Operation::Preprocess { id, .. } => write!(f, "Preprocess {}", id),
+            Operation::CompilePlaintext { id, .. } => write!(f, "Compile plaintext {}", id),
             Operation::Compile { id, .. } => write!(f, "Compile {}", id),
             Operation::Write { id, .. } => write!(f, "Write {}", id),
             Operation::Copy { id, .. } => write!(f, "Copy {}", id),
@@ -159,13 +178,22 @@ impl OpId {
             Op::Gather => String::from("gather:"),
             Op::Exec => format!("exec:{}", self.1),
             Op::Load => format!("file:{}", self.1),
+            Op::Tangle => format!("tangle:{}", self.1),
             Op::Parse => format!("ast:{}", self.1),
             Op::Preprocess => format!("parse:{}", self.1),
+            Op::CompilePlaintext => format!("compileplain:{}", self.1),
             Op::Compile => format!("compile:{}", self.1),
             Op::Write => format!("write:{}", self.1),
             Op::Copy => format!("copy:{}", self.1),
             Op::Graph => format!("graph:{}", self.1),
             Op::Finish => String::from("finish:"),
+        }
+    }
+
+    pub fn uri_path(&self) -> String {
+        match self.0 {
+            Op::Finish | Op::Gather => String::new(),
+            _ => self.1.to_string(),
         }
     }
 
@@ -190,10 +218,12 @@ impl From<&Operation> for OpId {
         match other {
             Gather { .. } => OpId::gather(),
             Load { id, .. }
+            | Tangle { id, .. }
             | Exec { id, .. }
             | Parse { id, .. }
             | Preprocess { id }
             | Compile { id, .. }
+            | CompilePlaintext { id, .. }
             | Write { id }
             | Copy { id, .. } => OpId(other.into(), id.clone()),
             Graph { graph_type } => OpId::graph(graph_type.to_string()),

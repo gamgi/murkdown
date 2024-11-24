@@ -1,12 +1,13 @@
 RULES FOR markdown PRODUCE text/markdown
 
+/* ------------------------------------------------ */
 PREPROCESS RULES:
 [...DATE...]$
   EXEC "date" TO text/plain AS "date"
-  PUSH src "exec:date"
+  PUSH src "exec?:date"
 
 [...EXEC...]$
-  PUSH src "exec:run"
+  PUSH src "exec?:run"
 
 [...EXEC...] [SEC]$
   SET stdin "\v"
@@ -22,6 +23,7 @@ PREPROCESS RULES:
 [...IMAGE...]$
   IS REF-BY-COPY
 
+/* ------------------------------------------------ */
 COMPILE RULES:
 /* root */
 ^[...]$

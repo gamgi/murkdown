@@ -184,6 +184,9 @@ fn process_graph(
                 Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
                 Operation::Exec { .. } => tasks.push(task::exec(op, asts, arts).boxed()),
                 Operation::Load { .. } => tasks.push(task::load(op, asts, arts).boxed()),
+                Operation::Tangle { .. } => {
+                    tasks.push(task::tangle(op, dep.unwrap(), arts).boxed())
+                }
                 Operation::Parse { .. } => tasks.push(task::parse(op, dep.unwrap(), arts).boxed()),
                 Operation::Preprocess { .. } => tasks.push(
                     task::preprocess(op, fmt.clone(), dep.unwrap(), asts, ops, arts, langs, locs)
@@ -191,6 +194,9 @@ fn process_graph(
                 ),
                 Operation::Compile { .. } => {
                     tasks.push(task::compile(op, fmt.clone(), dep.unwrap(), arts, langs).boxed())
+                }
+                Operation::CompilePlaintext { source_uri, .. } => {
+                    tasks.push(task::compile_plaintext(op, source_uri.clone(), arts, langs).boxed())
                 }
                 Operation::Write { .. } => {
                     tasks.push(task::write(op, dep.unwrap(), arts, out).boxed())

@@ -6,7 +6,7 @@ use crate::ast::{Node, NodeBuilder};
 use crate::compiler::lang::Lang;
 use crate::compiler::rule::{Context, LangSettings};
 use crate::parser::Rule;
-use crate::types::{AstMap, Dependency, LibError, LocationMap, Pointer};
+use crate::types::{AstMap, Dependency, LibError, LocationMap, Pointer, URI};
 
 static PREPROCESSABLE_PROPS: &[&str] = &["src", "ref"];
 
@@ -17,12 +17,23 @@ pub fn preprocess(
     locs: &LocationMap,
     context: &str,
     lang: &Lang,
-) -> Result<HashSet<Dependency>, LibError> {
+) -> Result<(HashSet<Dependency>, HashSet<URI>), LibError> {
     let mut deps = HashSet::new();
+    let mut new_asts = HashSet::new();
     let mut ctx = Context::default();
 
-    preprocess_recursive(node, &mut ctx, asts, locs, context, &mut deps, lang, "")?;
-    Ok(deps)
+    preprocess_recursive(
+        node,
+        &mut ctx,
+        asts,
+        locs,
+        context,
+        &mut deps,
+        &mut new_asts,
+        lang,
+        "",
+    )?;
+    Ok((deps, new_asts))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -33,6 +44,7 @@ fn preprocess_recursive<'a>(
     locs: &LocationMap,
     context: &str,
     deps: &mut HashSet<Dependency>,
+    new_asts: &mut HashSet<String>,
     lang: &'a Lang,
     base_path: &str,
 ) -> Result<(), LibError> {
@@ -55,12 +67,12 @@ fn preprocess_recursive<'a>(
         Rule::RootA | Rule::RootB => {
             preprocess_headers(node);
             preprocess_includes(node, asts, locs, context, deps, &settings);
-            preprocess_ids(node, asts, context);
+            preprocess_ids(node, asts, context, new_asts);
         }
         Rule::Block => {
             preprocess_headers(node);
             preprocess_includes(node, asts, locs, context, deps, &settings);
-            preprocess_ids(node, asts, context);
+            preprocess_ids(node, asts, context, new_asts);
         }
         Rule::Section => {
             preprocess_paragraphs(node, &settings);
@@ -74,7 +86,7 @@ fn preprocess_recursive<'a>(
 
         let children = node.children.as_mut().expect("is some");
         for child in children.iter_mut() {
-            preprocess_recursive(child, ctx, asts, locs, context, deps, lang, &path)?;
+            preprocess_recursive(child, ctx, asts, locs, context, deps, new_asts, lang, &path)?;
         }
     }
 
@@ -116,17 +128,26 @@ fn preprocess_headers(node: &mut Node) {
 }
 
 /// Moves nodes with id to asts
-fn preprocess_ids(node: &mut Node, asts: &mut AstMap, context: &str) {
+fn preprocess_ids(
+    node: &mut Node,
+    asts: &mut AstMap,
+    context: &str,
+    new_asts: &mut HashSet<String>,
+) {
     if let Some(id) = node.find_prop("id") {
-        let uri = format!("parse:{context}#{id}");
+        let uri = match context.is_empty() {
+            true => id.to_string(),
+            false => format!("parse:{context}#{id}"),
+        };
 
         if let Some(Pointer(weak)) = &node.pointer {
             // insert existing pointer node to asts at uri
             let arc = weak.upgrade().unwrap();
-            match asts.entry(uri) {
+            match asts.entry(uri.clone()) {
                 Entry::Occupied(_) => todo!("duplicate id"),
                 Entry::Vacant(r) => &*r.insert(arc),
             };
+            new_asts.insert(uri);
         } else {
             // pull node out and replace with new
             let mut new = node.clone();
@@ -134,7 +155,7 @@ fn preprocess_ids(node: &mut Node, asts: &mut AstMap, context: &str) {
             let old = std::mem::replace(node, new);
 
             // insert old node to asts at uri
-            let arc = match asts.entry(uri) {
+            let arc = match asts.entry(uri.clone()) {
                 Entry::Occupied(r) => {
                     let mut mutex = r.get().lock().expect("poisoned lock");
                     *mutex = old;
@@ -142,6 +163,7 @@ fn preprocess_ids(node: &mut Node, asts: &mut AstMap, context: &str) {
                 }
                 Entry::Vacant(r) => &*r.insert(Arc::new(Mutex::new(old))),
             };
+            new_asts.insert(uri);
 
             // add pointer to new node
             let pointer = Pointer(Arc::downgrade(arc));
@@ -176,20 +198,36 @@ fn preprocess_includes(
                 .unwrap_or((settings.default_ref.unwrap_or("write"), uri_or_path)),
             _ => unreachable!(),
         };
-        let (path, fragment) = path.rsplit_once('#').unwrap_or((path, ""));
 
-        // NOTE: first resolve URI path to canonical form
-        let uri_path = resolve_path(path, locs.keys().map(String::as_str), context).unwrap_or(path);
-
-        let uri_path = match fragment.is_empty() {
-            true => uri_path.to_string(),
-            false => format!("{uri_path}#{fragment}"),
+        let (scheme, is_resolved) = match scheme.split_once('?') {
+            Some((s, _)) => (s, true),
+            None => (scheme, false),
         };
 
-        // NOTE: then resolve URI path to possible AST node
-        let uri_path = resolve_scheme_path(&uri_path, scheme, asts.keys(), context)
-            .unwrap_or(&uri_path)
-            .to_string();
+        let uri_path = if is_resolved {
+            // NOTE: schemes with ? are pre-resolved
+            path.to_string()
+        } else {
+            // TODO: improve and clarify resolving
+            let (path, fragment) = path.rsplit_once('#').unwrap_or((path, ""));
+
+            // NOTE: first resolve URI path to canonical form
+            let prefix =
+                resolve_path(path, locs.keys().map(String::as_str), context).unwrap_or_default();
+
+            let uri_path = match fragment.is_empty() {
+                true if prefix.is_empty() => format!("{context}#{path}"),
+                true => prefix.to_string(),
+                false if prefix.is_empty() => format!("#{fragment}"),
+                false => format!("{prefix}#{fragment}"),
+            };
+
+            // NOTE: then resolve URI path to possible AST node
+            let uri_path = resolve_scheme_path(&uri_path, scheme, asts.keys(), context)
+                .unwrap_or(&uri_path)
+                .to_string();
+            uri_path
+        };
 
         let uri = format!("{scheme}:{uri_path}");
 
@@ -201,7 +239,7 @@ fn preprocess_includes(
         };
 
         // add placeholder node to ast
-        let arc = asts.entry(uri).or_insert_with(|| {
+        let arc = asts.entry(uri.clone()).or_insert_with(|| {
             let root = NodeBuilder::root().build().unwrap();
             Arc::new(Mutex::new(root))
         });
@@ -474,18 +512,40 @@ mod tests {
     fn test_preprocess_adds_asts() {
         let mut asts = AstMap::default();
         let mut node = NodeBuilder::root()
-            .children(vec![NodeBuilder::block(">")
-                .add_prop(("src".into(), "bar".into()))
-                .done()])
+            .children(vec![
+                NodeBuilder::block(">")
+                    .add_prop(("src".into(), "foo".into()))
+                    .done(),
+                NodeBuilder::block(">")
+                    .add_prop(("src".into(), "bar".into()))
+                    .done(),
+                NodeBuilder::block(">")
+                    .add_prop(("src".into(), "exec?:baz".into()))
+                    .done(),
+                NodeBuilder::block(">")
+                    .add_prop(("src".into(), "exec:code.sh".into()))
+                    .done(),
+            ])
             .done();
         let mut locs = LocationMap::default();
         locs.insert("bar".to_string(), PathBuf::from("something.txt"));
+        locs.insert("file.md".to_string(), PathBuf::from("file.md"));
+        locs.insert("path/code.sh".to_string(), PathBuf::from("path/code.sh"));
         let lang = Lang::markdown();
 
-        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+        preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
 
-        let ast_keys = asts.keys().collect::<Vec<_>>();
-        assert_eq!(ast_keys, vec!["parse:bar"]);
+        let mut ast_keys = asts.keys().collect::<Vec<_>>();
+        ast_keys.sort();
+        assert_eq!(
+            ast_keys,
+            vec![
+                "exec:baz",
+                "exec:path/code.sh",
+                "parse:bar",
+                "parse:file.md#foo"
+            ]
+        );
     }
 
     #[test]
@@ -532,6 +592,33 @@ mod tests {
     }
 
     #[test]
+    fn test_preprocess_returns_deps_and_new_asts() {
+        let mut asts = AstMap::default();
+
+        let mut node = NodeBuilder::root()
+            .children(vec![
+                NodeBuilder::block(">")
+                    .add_prop(("id".into(), "code".into()))
+                    .done(),
+                NodeBuilder::block(">")
+                    .add_prop(("src".into(), "exec:code".into()))
+                    .done(),
+            ])
+            .done();
+        let mut locs = LocationMap::default();
+        let lang = Lang::markdown();
+        locs.insert("file.md".to_string(), PathBuf::from("file.md"));
+        let (deps, new_asts) =
+            preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
+
+        assert_eq!(
+            deps,
+            HashSet::from([Dependency::URI("src", "exec:file.md#code".to_string()),])
+        );
+        assert_eq!(new_asts, HashSet::from(["parse:file.md#code".to_string()]));
+    }
+
+    #[test]
     fn test_preprocess_runs_precompile() {
         let mut asts = AstMap::default();
         let mut node = NodeBuilder::root()
@@ -540,27 +627,28 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
+        locs.insert("file.md".to_string(), PathBuf::from("file.md"));
         let lang = Lang::markdown();
 
-        let deps = preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+        let (deps, _) = preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
 
         assert_eq!(
             deps,
             HashSet::from([
-                Dependency::URI("src", "exec:date".to_string()),
                 Dependency::Exec {
                     cmd: "date".to_string(),
                     input: None,
                     artifact: ExecArtifact::Stdout("text/plain".to_string()),
                     id: "date".into(),
-                }
+                },
+                Dependency::URI("src", "exec:date".to_string()),
             ])
         );
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
 
-        assert_eq!(block.props, Some(vec![("src".into(), "exec:date".into())]));
+        assert_eq!(block.props, Some(vec![("src".into(), "exec?:date".into())]));
     }
 
     #[test]

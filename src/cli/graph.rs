@@ -53,6 +53,7 @@ impl OpGraph {
     }
 
     pub fn add_dependency(&mut self, from: OpId, to: OpId) {
+        assert_ne!(from, to);
         let list = self.adjecency.entry(from).or_default();
         if !list.contains(&to) {
             list.push(to);
@@ -67,7 +68,7 @@ impl OpGraph {
             .and_then(|id| self.vertices.get(id))
     }
 
-    /// Get first dependency vertex id
+    /// Get first upstream dependency vertex id
     pub fn get_first_node_dependency(&self, node: &Operation) -> Option<&OpId> {
         let from = OpId::from(node);
         self.get_dependencies(&from).first()

@@ -1,0 +1,8 @@
+RULES FOR plaintext PRODUCE text/plain
+
+/* ------------------------------------------------ */
+COMPILE RULES:
+
+LINE$
+  IS UNESCAPED_VALUE
+  WRITE "\v\n"

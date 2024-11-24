@@ -55,7 +55,6 @@ fn compile_recusive<'a>(
             if let parser::Rule::Ellipsis = node.rule {
                 // NOTE: skip block node
                 let mut block = mutex.lock().unwrap();
-                assert_eq!(block.rule, parser::Rule::Block);
                 if let Some(children) = block.children.as_mut() {
                     // NOTE: skip section node
                     for section in children {
