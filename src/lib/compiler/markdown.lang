@@ -27,25 +27,26 @@ PREPROCESS RULES:
 COMPILE RULES:
 /* root */
 ^[...]$
-  PUSH join "\n"
+  SET join "\n"
 
-/* root plain code section */
+^[...] [SEC...] [...]$
+  IS COMPOSABLE
+  SET spacer " "
+
 ^[...] [SEC...] [CODE] [SEC...]$
-  WRITEALL prefix
-  WRITE "```$language\n"
-  YIELD
-  WRITE "\n```"
-  WRITEALL prefix
-  WRITE indent
+  IS COMPOSABLE
+  SET spacer ""
 
 /* code section */
 [...CODE...] [SEC...]$
   WRITEALL prefix
-  WRITE " ```$language\n"
+  WRITE spacer
+  WRITE "```$language\n"
   YIELD
   WRITE "\n"
   WRITEALL prefix
-  WRITE " ```\n"
+  WRITE spacer
+  WRITE "```\n"
 
 /* figure block */
 [...FIGURE...]$
@@ -122,13 +123,14 @@ COMPILE RULES:
 [...IMAGE...] [SEC...] LINE$
   WRITE "\v"
 
-/* root line */
+/* other */
 ^[...] [SEC...] LINE$
+  IS UNESCAPED_VALUE
   WRITE prefix
   WRITE "\v"
 
-/* line */
 LINE$
   IS UNESCAPED_VALUE
   WRITEALL prefix
-  WRITE " \v"
+  WRITE spacer
+  WRITE "\v"
