@@ -1,0 +1,49 @@
+bin.name = "md"
+args = "--output stdout --format markdown build a.md"
+stdout = """
+[INFO] Building 1 sources
+
+A Let's do some Fibonacci numbers.
+Define the function:
+
+```python
+def fib(n):
+  if n < 2:
+    return n
+  else:
+    return fib(n-1) + fib(n-2)
+```
+
+
+And call it like this:
+
+```python
+#!/usr/bin/env python
+
+def fib(n):
+  if n < 2:
+    return n
+  else:
+    return fib(n-1) + fib(n-2)
+
+for i in range(4):
+  print(fib(i))
+```
+
+
+The result will be:
+
+* 0
+* 1
+* 1
+* 2
+* 
+
+We can also call external scripts.
+
+> Hello world from sh
+> 
+
+[INFO] Done
+"""
+stderr = ""
