@@ -1,3 +1,3 @@
 bin.name = "md"
-args = "--output . --format html build file.md"
+args = "--output . --format html build file.md tabbed.md"
 stderr = ""
