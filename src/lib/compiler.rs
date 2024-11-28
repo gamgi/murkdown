@@ -33,10 +33,12 @@ fn compile_recusive<'a>(
 ) -> Result<String, LibError> {
     let mut out = String::new();
     let mut nodes = nodes.iter_mut().peekable();
+    let mut idx = 0;
 
     while let Some(node) = nodes.next() {
         let path = node.build_path(base_path);
         ctx.set_parent(node);
+        ctx.set_index(idx);
 
         let rules = lang.get_rules("COMPILE", &path);
         let mut rules_stack = Vec::new();
@@ -62,6 +64,7 @@ fn compile_recusive<'a>(
                         if let Some(children) = section.children.as_mut() {
                             // fall through Ellipsis and only render Section contents
                             out.push_str(&compile_recusive(children, ctx, deps, lang, base_path)?);
+                            idx += 1;
                         }
                     }
                 }
@@ -69,10 +72,12 @@ fn compile_recusive<'a>(
                 let mut node = mutex.lock().expect("poisoned or deadlack");
                 if let Some(children) = node.children.as_mut() {
                     out.push_str(&compile_recusive(children, ctx, deps, lang, &path)?);
+                    idx += 1;
                 }
             }
         } else if let Some(children) = node.children.as_mut() {
             out.push_str(&compile_recusive(children, ctx, deps, lang, &path)?);
+            idx += 1;
         }
 
         // Evaluate post-yield

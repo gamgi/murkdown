@@ -37,12 +37,10 @@ The result will be:
 * 1
 * 1
 * 2
-* 
 
 We can also call external scripts.
 
 > Hello world from sh
-> 
 
 [INFO] Done
 """

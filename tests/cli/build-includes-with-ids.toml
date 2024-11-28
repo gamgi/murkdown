@@ -18,4 +18,5 @@ And then some more blocks.
 
 [INFO] Done
 """
-stderr = ""
+stderr = """
+"""

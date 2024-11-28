@@ -185,7 +185,7 @@ pub async fn exec(
 
     let stdout_artifact = match artifact.clone() {
         ExecArtifact::Stdout(media_type) => match String::from_utf8(result.stdout) {
-            Ok(v) => Artifact::Plaintext(media_type, v),
+            Ok(v) => Artifact::Plaintext(media_type, v.trim_end().to_string()),
             Err(v) => Artifact::Binary(media_type, v.into_bytes()),
         },
         ExecArtifact::Path(_path_buf) => todo!(),

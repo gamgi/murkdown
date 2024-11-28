@@ -6,6 +6,9 @@ use std::{borrow::Cow, sync::Arc};
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
+use rand::distributions::{Alphanumeric, DistString};
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 use regex::Regex;
 
 use crate::ast::Node;
@@ -72,8 +75,25 @@ impl LangSettings {
 #[derive(Debug, Clone, Default)]
 pub struct Context<'a> {
     pub stacks: HashMap<Arc<str>, Vec<Cow<'a, str>>>,
+    pub index: usize,
     pub parent_value: Option<Arc<str>>,
     pub parent_headers: Option<Vec<Arc<str>>>,
+    pub rng: StringRng,
+}
+
+#[derive(Debug, Clone)]
+pub struct StringRng(StdRng);
+
+impl Default for StringRng {
+    fn default() -> Self {
+        Self(StdRng::seed_from_u64(1234))
+    }
+}
+
+impl StringRng {
+    pub fn sample_string(&mut self) -> String {
+        Alphanumeric.sample_string(&mut self.0, 6).to_lowercase()
+    }
 }
 
 #[allow(clippy::needless_lifetimes)]
@@ -81,6 +101,10 @@ impl<'a> Context<'a> {
     pub fn set_parent(&mut self, node: &Node) {
         self.parent_value = node.value.clone();
         self.parent_headers = node.headers.clone();
+    }
+
+    pub fn set_index(&mut self, idx: usize) {
+        self.index = idx;
     }
 }
 

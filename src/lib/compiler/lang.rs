@@ -205,7 +205,7 @@ impl Lang {
 
 fn replace<'a>(
     template: &'a str,
-    ctx: &Context,
+    ctx: &mut Context,
     node: &Node,
     settings: &LangSettings,
 ) -> Cow<'a, str> {
@@ -253,7 +253,9 @@ fn replace<'a>(
 
     // builtin
     result = result
+        .replace(r"\r", &ctx.rng.sample_string())
         .replace(r"\v", value.as_deref().unwrap_or_default())
+        .replace(r"\i", &ctx.index.to_string())
         .replace(r"\V", ctx.parent_value.as_deref().unwrap_or_default())
         .replace(r"\m", node.marker.as_deref().unwrap_or_default());
 
