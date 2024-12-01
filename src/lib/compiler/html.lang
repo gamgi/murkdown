@@ -20,9 +20,6 @@ PREPROCESS RULES:
 
 /* ------------------------------------------------ */
 COMPILE RULES:
-/* root */
-^[...]$
-  SET join "\n"
 
 [...TIP...]$
   IS COMPOSABLE
@@ -72,6 +69,52 @@ COMPILE RULES:
   WRITEALL indent
   WRITE "<label for=\"$tabid-\i\">$id</label>\n"
   PUSH class "tabs-content"
+
+/* list */
+[...LIST...]$
+  WRITEALL indent
+  WRITE "<ul class=\"$class:j\">\n"
+  DRAIN class
+  PUSH indent "  "
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITEALL indent
+  WRITE "</ul>"
+
+[...LIST...] [SEC...]$
+  IS COMPOSABLE
+  YIELD
+
+[...LIST...] [SEC...] [...]$
+  IS COMPOSABLE
+  WRITEALL indent
+  WRITE "<li>\n"
+  PUSH indent "  "
+  YIELD
+  POP indent
+  WRITE "\n"
+  WRITEALL indent
+  WRITE "</li>"
+
+[...LIST...] [SEC...] LINE$
+  IS COMPOSABLE
+  PUSH prefix "<li>"
+  PUSH suffix "</li>"
+  YIELD
+  POP prefix
+  POP suffix
+
+/* link */
+[...LINK...]$
+  WRITEALL indent
+  WRITE "<a href=\"$href\" class=\"$class:j\">\n"
+  PUSH indent "  "
+  YIELD
+  POP indent
+  WRITE "\n"
+  WRITEALL indent
+  WRITE "</a>"
 
 /* image & figure */
 [...FIGURE...]$
@@ -155,56 +198,6 @@ COMPILE RULES:
   POP prefix
   POP suffix
 
-/* list */
-[...LIST...]$
-  WRITEALL indent
-  WRITE "<ul class=\"$class:j\">\n"
-  DRAIN class
-  PUSH indent "  "
-  YIELD
-  WRITE "\n"
-  POP indent
-  WRITEALL indent
-  WRITE "</ul>"
-
-[...LIST...] [SEC...]$
-  IS COMPOSABLE
-  YIELD
-
-[...LIST...] [SEC...] [PAR...] ASD$
-  NOOP
-
-[...LIST...] [SEC...] [...]$
-  IS COMPOSABLE
-  WRITEALL indent
-  WRITE "<li>\n"
-  PUSH indent "  "
-  YIELD
-  POP indent
-  WRITE "\n"
-  WRITEALL indent
-  WRITE "</li>"
-
-[...LIST...] [SEC...] LINE$
-  IS COMPOSABLE
-  PUSH prefix "<li>"
-  PUSH suffix "</li>"
-  YIELD
-  POP prefix
-  POP suffix
-
-/* link */
-[...LINK...]$
-  IS COMPOSABLE
-  WRITEALL indent
-  WRITE "<a href=\"$href\">\n"
-  PUSH indent "  "
-  YIELD
-  POP indent
-  WRITE "\n"
-  WRITEALL indent
-  WRITE "</a>"
-
 /* paragraph */
 [PAR...]$
   WRITEALL indent
@@ -216,9 +209,64 @@ COMPILE RULES:
   WRITEALL indent
   WRITE "</p>"
 
+/* website */
+^[...WEBSITE...]$
+  IS COMPOSABLE
+  WRITE "<!DOCTYPE html>\n"
+  WRITE "<html lang=\"$lang\">\n"
+  WRITE "<head>\n"
+  PUSH indent "  "
+  WRITE "  <title>$title</title>\n"
+  WRITE "  <meta charset=\"utf-8\">\n"
+  WRITE "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+  YIELD
+
+^[SIMPLE WEBSITE...]$
+  IS COMPOSABLE
+  WRITEALL indent
+  WRITE "<link rel=\"stylesheet\" href=\"https://cdn.simplecss.org/simple.min.css\">\n"
+
+^[...WEBSITE...]$
+  IS COMPOSABLE
+  WRITE "</head>\n"
+  WRITE "<body class=\"$class:j\">\n"
+  YIELD
+  WRITE "</html>\n"
+
+^[...WEBSITE...]$
+  IS COMPOSABLE
+  YIELD
+  POP indent
+  WRITE "\n"
+  WRITE "</body>\n"
+
+^[...WEBSITE...] [SEC...HEADER]$
+  WRITEALL indent
+  WRITE "<header>"
+  PUSH indent "  "
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITEALL indent
+  WRITE "</header>\n"
+
+^[...WEBSITE...] [SEC...]$
+  WRITEALL indent
+  WRITE "<main>"
+  PUSH indent "  "
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITEALL indent
+  WRITE "</main>\n"
+
 /* other */
 [SEC...]$
   NOOP
+
+/* root */
+^[...]$
+  SET join "\n"
 
 [...]$
   WRITEALL indent
