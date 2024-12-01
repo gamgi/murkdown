@@ -1,12 +1,16 @@
 bin.name = "md"
 args = "--interactive --output stdout --format markdown"
 stdin = """
+index "data:text/plain;base64,d29ybGQK#other.md"
 build file.md
 exit
 """
 stdout = """
+[INFO] Indexing 1 sources
 [INFO] Building 1 sources
 hello
+
+> world
 
 [INFO] Done
 """

@@ -1,10 +1,10 @@
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
+use std::sync::{Arc, MutexGuard};
 
 use futures::stream::FuturesUnordered;
 use futures::{future::BoxFuture, FutureExt};
 use log::{error, info};
-use murkdown::types::{ExecArtifact, ExecInput};
+use murkdown::types::{ExecArtifact, ExecInput, LocationMap};
 use tokio::task::yield_now;
 use tokio_stream::StreamExt;
 
@@ -62,8 +62,18 @@ fn process_event(
     tasks: &mut FuturesUnordered<BoxFuture<'static, Result<bool, AppError>>>,
     state: &State,
 ) -> Result<(), AppError> {
-    let get_sources_and_parents = |sources: &[String]| {
-        let sources = sources.iter().map(Source::from).collect::<Vec<_>>();
+    let get_sources_and_parents = |paths: &[String], locs: MutexGuard<LocationMap>| {
+        let sources = paths
+            .iter()
+            .map(|path| {
+                // NOTE: replace sources that have been indexed previously
+                if let Some(loc) = locs.get(path) {
+                    Source::from(loc.clone())
+                } else {
+                    Source::from(path)
+                }
+            })
+            .collect::<Vec<_>>();
         let sources_paths = sources
             .clone()
             .into_iter()
@@ -75,7 +85,10 @@ fn process_event(
         Event::Command(Ok(cmd)) => match cmd {
             Command::Graph { ref paths, graph_type, .. } => {
                 info!(target = "status"; "Building {} sources and {} graph", paths.len(), graph_type);
-                let (sources, paths_parents) = get_sources_and_parents(paths)?;
+                let (sources, paths_parents) = {
+                    let locs = state.locations.lock().expect("poisoned lock");
+                    get_sources_and_parents(paths, locs)?
+                };
                 let splits = None;
 
                 tasks.push(task::index(paths_parents, state.locations.clone()).boxed());
@@ -96,19 +109,20 @@ fn process_event(
                     Operation::Write { id },
                 ]);
             }
-            Command::Load { ref paths, .. } => {
-                let (sources, parents) = get_sources_and_parents(paths)?;
-                let splits = None;
-
-                tasks.push(task::index(parents, state.locations.clone()).boxed());
-                state.insert_op_chain([
-                    Operation::Gather { cmd, sources, splits },
-                    Operation::Finish,
-                ]);
+            Command::Index { ref paths, .. } => {
+                info!(target = "status"; "Indexing {} sources", paths.len());
+                let mut locs = state.locations.lock().expect("poisoned lock");
+                let sources = paths.iter().map(Source::from).collect::<Vec<_>>();
+                for source in sources {
+                    locs.insert(source.path()?, source.into());
+                }
             }
             Command::Build { ref paths, ref splits } => {
                 info!(target = "status"; "Building {} sources", paths.len());
-                let (sources, parents) = get_sources_and_parents(paths)?;
+                let (sources, parents) = {
+                    let locs = state.locations.lock().expect("poisoned lock");
+                    get_sources_and_parents(paths, locs)?
+                };
                 let splits = Some(splits.clone());
 
                 tasks.push(task::index(parents, state.locations.clone()).boxed());
@@ -180,30 +194,26 @@ fn process_graph(
             let out = config.output.clone().expect("output");
             let fmt = config.format.clone().expect("format");
 
+            use Operation::*;
             match vertex {
-                Operation::Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
-                Operation::Exec { .. } => tasks.push(task::exec(op, asts, arts).boxed()),
-                Operation::Load { .. } => tasks.push(task::load(op, asts, arts).boxed()),
-                Operation::Tangle { .. } => {
-                    tasks.push(task::tangle(op, dep.unwrap(), arts).boxed())
-                }
-                Operation::Parse { .. } => tasks.push(task::parse(op, dep.unwrap(), arts).boxed()),
-                Operation::Preprocess { .. } => tasks.push(
-                    task::preprocess(op, fmt.clone(), dep.unwrap(), asts, ops, arts, langs, locs)
-                        .boxed(),
+                Gather { .. } => tasks.push(task::gather(op, ops).boxed()),
+                Exec { .. } => tasks.push(task::exec(op, asts, arts).boxed()),
+                Load { .. } => tasks.push(task::load(op, asts, arts).boxed()),
+                Tangle { .. } => tasks.push(task::tangle(op, dep.unwrap(), arts).boxed()),
+                Parse { .. } => tasks.push(task::parse(op, dep.unwrap(), arts).boxed()),
+                Preprocess { .. } => tasks.push(
+                    task::preprocess(op, fmt, dep.unwrap(), asts, ops, arts, langs, locs).boxed(),
                 ),
-                Operation::Compile { .. } => {
-                    tasks.push(task::compile(op, fmt.clone(), dep.unwrap(), arts, langs).boxed())
+                Compile { .. } => {
+                    tasks.push(task::compile(op, fmt, dep.unwrap(), arts, langs).boxed())
                 }
-                Operation::CompilePlaintext { source_uri, .. } => {
+                CompilePlaintext { source_uri, .. } => {
                     tasks.push(task::compile_plaintext(op, source_uri.clone(), arts, langs).boxed())
                 }
-                Operation::Write { .. } => {
-                    tasks.push(task::write(op, dep.unwrap(), arts, out).boxed())
-                }
-                Operation::Copy { .. } => tasks.push(task::copy(op, out).boxed()),
-                Operation::Graph { .. } => tasks.push(task::graph(op, ops, arts).boxed()),
-                Operation::Finish => tasks.push(task::finish(op).boxed()),
+                Write { .. } => tasks.push(task::write(op, dep.unwrap(), arts, out).boxed()),
+                Copy { .. } => tasks.push(task::copy(op, out).boxed()),
+                Graph { .. } => tasks.push(task::graph(op, ops, arts).boxed()),
+                Finish => tasks.push(task::finish(op).boxed()),
             }
             state.mark_op_processed(opid.clone());
         }

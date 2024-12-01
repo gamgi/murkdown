@@ -60,7 +60,7 @@ impl State {
     }
 
     #[cfg(test)]
-    pub fn insert_location(&self, path: &str, location: impl Into<PathBuf>) {
+    pub fn insert_location(&self, path: &str, location: impl Into<murkdown::types::Location>) {
         let mut locs = self.locations.lock().expect("poisoned lock");
         locs.insert(path.to_string(), location.into());
     }

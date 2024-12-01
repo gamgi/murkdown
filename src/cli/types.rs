@@ -4,10 +4,10 @@ use std::{
 };
 
 use clap::error::Error as ClapError;
-use data_url::{forgiving_base64::InvalidBase64, DataUrlError};
+use data_url::{forgiving_base64::InvalidBase64, DataUrl, DataUrlError};
 use murkdown::{
     compiler::Lang,
-    types::{LibError, URI},
+    types::{LibError, Location, URI},
 };
 use thiserror::Error;
 use tokio::sync::mpsc::{self};
@@ -47,10 +47,25 @@ pub enum Source {
     Url(String),
 }
 
-#[cfg(test)]
 impl Source {
+    #[cfg(test)]
     pub fn empty() -> Self {
         Self::Path(PathBuf::new())
+    }
+
+    /// Source path or fragment
+    pub fn path(&self) -> Result<String, AppError> {
+        match self {
+            Source::Path(path) => Ok(path.display().to_string()),
+            Source::Url(pattern) => {
+                let url = DataUrl::process(pattern)?;
+                let fragment = url.decode_to_vec()?.1;
+                match fragment {
+                    Some(f) => Ok(f.to_percent_encoded()),
+                    None => Err(AppError::bad_data_url_fragment(pattern)),
+                }
+            }
+        }
     }
 }
 
@@ -92,6 +107,25 @@ impl TryInto<PathBuf> for Source {
                 ErrorKind::InvalidInput,
                 "cannot build path fomr data url",
             )),
+        }
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<Location> for Source {
+    fn into(self) -> Location {
+        match self {
+            Source::Path(path_buf) => Location::Path(path_buf),
+            Source::Url(url) => Location::DataURL(url),
+        }
+    }
+}
+
+impl From<Location> for Source {
+    fn from(value: Location) -> Self {
+        match value {
+            Location::Path(path_buf) => Self::Path(path_buf),
+            Location::DataURL(url) => Self::Url(url),
         }
     }
 }

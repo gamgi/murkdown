@@ -22,10 +22,22 @@ pub type AstMap = HashMap<String, Arc<Mutex<Node>>>;
 pub(crate) type RuleMap = HashMap<&'static str, Vec<LangRule>>;
 
 /// Map from Resource path (eg. foo.fd) to location on disk
-pub type LocationMap = HashMap<String, PathBuf>;
+pub type LocationMap = HashMap<String, Location>;
 
 #[derive(Debug, Clone)]
 pub struct Pointer(pub Weak<Mutex<Node>>);
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum Location {
+    Path(PathBuf),
+    DataURL(String),
+}
+
+impl From<PathBuf> for Location {
+    fn from(value: PathBuf) -> Self {
+        Self::Path(value)
+    }
+}
 
 /// Dependency discovered by the preprocessor or compiler
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

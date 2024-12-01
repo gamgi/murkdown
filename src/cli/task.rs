@@ -54,7 +54,7 @@ pub async fn index(
         for (id, path) in walker {
             trace!("Indexed {}", id);
             count += 1;
-            locations.insert(id, path);
+            locations.insert(id, path.into());
         }
     }
     debug!("Indexed {count} files");
@@ -108,14 +108,6 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
 
             count += 1;
             match cmd {
-                Command::Load { .. } => {
-                    if graph.get(&OpId::load(id.clone())).is_none() {
-                        graph
-                            .insert_node_chain([Operation::Load { id, source }, Operation::Finish]);
-                    } else {
-                        // reload
-                    }
-                }
                 Command::Build { .. } | Command::Graph { .. } => graph.insert_node_chain([
                     op.clone(),
                     Operation::Load { id: id.clone(), source },

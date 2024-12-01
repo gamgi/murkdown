@@ -1,1 +1,3 @@
 hello
+
+> [!](src="other.md")

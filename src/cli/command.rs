@@ -56,8 +56,8 @@ pub(crate) enum Command {
         #[arg(default_values_t = [".".to_string()])]
         paths: Vec<String>,
     },
-    /// Load content into memory
-    Load {
+    /// Index content into memory
+    Index {
         /// Input paths or data URLs
         paths: Vec<String>,
     },

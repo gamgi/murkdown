@@ -427,7 +427,7 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
-        locs.insert("bar".to_string(), PathBuf::from("something.txt"));
+        locs.insert("bar".to_string(), PathBuf::from("something.txt").into());
         let lang = Lang::markdown();
         preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
 
@@ -445,7 +445,7 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
-        locs.insert("bar".to_string(), PathBuf::from("something.txt"));
+        locs.insert("bar".to_string(), PathBuf::from("something.txt").into());
         let lang = Lang::markdown();
         preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
 
@@ -528,9 +528,12 @@ mod tests {
             ])
             .done();
         let mut locs = LocationMap::default();
-        locs.insert("bar".to_string(), PathBuf::from("something.txt"));
-        locs.insert("file.md".to_string(), PathBuf::from("file.md"));
-        locs.insert("path/code.sh".to_string(), PathBuf::from("path/code.sh"));
+        locs.insert("bar".to_string(), PathBuf::from("something.txt").into());
+        locs.insert("file.md".to_string(), PathBuf::from("file.md").into());
+        locs.insert(
+            "path/code.sh".to_string(),
+            PathBuf::from("path/code.sh").into(),
+        );
         let lang = Lang::markdown();
 
         preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
@@ -582,8 +585,8 @@ mod tests {
             .done();
         let mut locs = LocationMap::default();
         let lang = Lang::markdown();
-        locs.insert("file.md".to_string(), PathBuf::from("file.md"));
-        locs.insert("other.md".to_string(), PathBuf::from("other.md"));
+        locs.insert("file.md".to_string(), PathBuf::from("file.md").into());
+        locs.insert("other.md".to_string(), PathBuf::from("other.md").into());
         preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
@@ -607,7 +610,7 @@ mod tests {
             .done();
         let mut locs = LocationMap::default();
         let lang = Lang::markdown();
-        locs.insert("file.md".to_string(), PathBuf::from("file.md"));
+        locs.insert("file.md".to_string(), PathBuf::from("file.md").into());
         let (deps, new_asts) =
             preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
 
@@ -627,7 +630,7 @@ mod tests {
                 .done()])
             .done();
         let mut locs = LocationMap::default();
-        locs.insert("file.md".to_string(), PathBuf::from("file.md"));
+        locs.insert("file.md".to_string(), PathBuf::from("file.md").into());
         let lang = Lang::markdown();
 
         let (deps, _) = preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();

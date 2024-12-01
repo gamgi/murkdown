@@ -137,6 +137,7 @@ impl OpId {
         Self(Op::Exec, id.into())
     }
 
+    #[cfg(test)]
     pub fn load(id: impl Into<Arc<str>>) -> Self {
         Self(Op::Load, id.into())
     }
