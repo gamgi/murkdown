@@ -67,12 +67,10 @@ fn preprocess_recursive<'a>(
         Rule::RootA | Rule::RootB => {
             preprocess_headers(node);
             preprocess_includes(node, asts, locs, context, deps, &settings);
-            preprocess_ids(node, asts, context, new_asts);
         }
         Rule::Block => {
             preprocess_headers(node);
             preprocess_includes(node, asts, locs, context, deps, &settings);
-            preprocess_ids(node, asts, context, new_asts);
         }
         Rule::Section => {
             preprocess_paragraphs(node, &settings);
@@ -80,14 +78,25 @@ fn preprocess_recursive<'a>(
         _ => {}
     }
 
+    // NOTE: preprocess children after path may have changed (eg. new headers)
     if node.children.is_some() {
-        // NOTE: path may have changed (eg. new headers)
         let path = node.build_path(base_path);
 
         let children = node.children.as_mut().expect("is some");
         for child in children.iter_mut() {
             preprocess_recursive(child, ctx, asts, locs, context, deps, new_asts, lang, &path)?;
         }
+    }
+
+    // NOTE: moves ids to ast map after children have been preprocessed
+    match node.rule {
+        Rule::RootA | Rule::RootB => {
+            preprocess_ids(node, asts, context, new_asts);
+        }
+        Rule::Block => {
+            preprocess_ids(node, asts, context, new_asts);
+        }
+        _ => {}
     }
 
     // Evaluate post-yield
@@ -552,7 +561,33 @@ mod tests {
     }
 
     #[test]
-    fn test_preprocess_moves_id_nodes_to_asts() {
+    fn test_preprocess_moves_id_to_asts_and_processes_children() {
+        let mut asts = AstMap::default();
+        let block = NodeBuilder::block(">")
+            .add_prop(("id".into(), "bar".into()))
+            .add_section(vec![NodeBuilder::block("*")
+                .children(vec![Node::line("foo")])
+                .done()])
+            .done();
+        let expected_block = NodeBuilder::block(">")
+            .add_prop(("id".into(), "bar".into()))
+            .add_section(vec![NodeBuilder::block("*")
+                .headers(Some(vec![Arc::from("LIST")]))
+                .children(vec![Node::line("foo")])
+                .done()])
+            .done();
+
+        let mut node = NodeBuilder::root().children(vec![block.clone()]).done();
+        let mut locs = LocationMap::default();
+        let lang = Lang::markdown();
+        preprocess(&mut node, &mut asts, &mut locs, "foo", &lang).unwrap();
+
+        let moved_block = asts.get("parse:foo#bar").unwrap().lock().unwrap();
+        assert_eq!(*moved_block, expected_block);
+    }
+
+    #[test]
+    fn test_preprocess_moves_node_id_to_asts() {
         let mut asts = AstMap::default();
         let block = NodeBuilder::block(">")
             .add_prop(("id".into(), "bar".into()))
