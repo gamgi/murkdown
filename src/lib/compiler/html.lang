@@ -42,7 +42,7 @@ COMPILE RULES:
   /* start a new tab */
   SET checked "checked"
   SET tabid "\r"
-  WRITE "<div class=\"inner inner-content $class:j\" name=\"$tabid-f\">\n"
+  WRITE "<div class=\"tabs tabs-content $class:j\" name=\"$tabid-f\">\n"
   DRAIN class
   PUSH indent "  "
   YIELD
@@ -55,7 +55,7 @@ COMPILE RULES:
   WRITEALL indent
   SET checked "checked"
   SET tabid "\r"
-  WRITE "<div class=\"inner $class:j\" name=\"$tabid-f\">\n"
+  WRITE "<div class=\"tabs $class:j\" name=\"$tabid-f\">\n"
   DRAIN class
   PUSH indent "  "
   YIELD
@@ -71,7 +71,7 @@ COMPILE RULES:
   DRAIN checked
   WRITEALL indent
   WRITE "<label for=\"$tabid-\i\">$id</label>\n"
-  PUSH class "inner-content"
+  PUSH class "tabs-content"
 
 /* image & figure */
 [...FIGURE...]$
