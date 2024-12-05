@@ -13,6 +13,7 @@ static PREPROCESSABLE_PROPS: &[&str] = &["src", "ref"];
 /// Preprocess AST
 pub fn preprocess(
     node: &mut Node,
+    extra_headers: Option<&str>,
     asts: &mut AstMap,
     locs: &LocationMap,
     context: &str,
@@ -24,6 +25,7 @@ pub fn preprocess(
 
     preprocess_recursive(
         node,
+        extra_headers,
         &mut ctx,
         asts,
         locs,
@@ -39,6 +41,7 @@ pub fn preprocess(
 #[allow(clippy::too_many_arguments)]
 fn preprocess_recursive<'a>(
     node: &mut Node,
+    headers: Option<&str>,
     ctx: &mut Context<'a>,
     asts: &mut AstMap,
     locs: &LocationMap,
@@ -65,11 +68,11 @@ fn preprocess_recursive<'a>(
 
     match node.rule {
         Rule::RootA | Rule::RootB => {
-            preprocess_headers(node);
+            preprocess_headers(node, headers);
             preprocess_includes(node, asts, locs, context, deps, &settings);
         }
         Rule::Block => {
-            preprocess_headers(node);
+            preprocess_headers(node, None);
             preprocess_includes(node, asts, locs, context, deps, &settings);
         }
         Rule::Section => {
@@ -84,7 +87,9 @@ fn preprocess_recursive<'a>(
 
         let children = node.children.as_mut().expect("is some");
         for child in children.iter_mut() {
-            preprocess_recursive(child, ctx, asts, locs, context, deps, new_asts, lang, &path)?;
+            preprocess_recursive(
+                child, headers, ctx, asts, locs, context, deps, new_asts, lang, &path,
+            )?;
         }
     }
 
@@ -109,7 +114,13 @@ fn preprocess_recursive<'a>(
 }
 
 /// Adds implicit headers to nodes
-fn preprocess_headers(node: &mut Node) {
+fn preprocess_headers(node: &mut Node, extra_headers: Option<&str>) {
+    if let Some(extra) = extra_headers.map(str::to_uppercase) {
+        let headers = node.headers.get_or_insert_with(Default::default);
+        headers.splice(..0, extra.split_ascii_whitespace().map(Arc::from));
+        return;
+    }
+
     match node.marker.as_deref() {
         Some("#") => {
             let headers = node.headers.get_or_insert_with(Default::default);
@@ -438,7 +449,7 @@ mod tests {
         let mut locs = LocationMap::default();
         locs.insert("bar".to_string(), PathBuf::from("something.txt").into());
         let lang = Lang::markdown();
-        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
@@ -456,7 +467,7 @@ mod tests {
         let mut locs = LocationMap::default();
         locs.insert("bar".to_string(), PathBuf::from("something.txt").into());
         let lang = Lang::markdown();
-        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
@@ -482,7 +493,7 @@ mod tests {
         let mut locs = LocationMap::default();
         let lang = Lang::markdown();
 
-        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "", &lang).unwrap();
 
         let block = node.children.as_ref().unwrap().first().unwrap();
         let section = block.children.as_ref().unwrap().first().unwrap();
@@ -508,7 +519,7 @@ mod tests {
             .done();
         let mut locs = LocationMap::default();
         let lang = Lang::markdown();
-        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
@@ -545,7 +556,7 @@ mod tests {
         );
         let lang = Lang::markdown();
 
-        preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "file.md", &lang).unwrap();
 
         let mut ast_keys = asts.keys().collect::<Vec<_>>();
         ast_keys.sort();
@@ -580,7 +591,7 @@ mod tests {
         let mut node = NodeBuilder::root().children(vec![block.clone()]).done();
         let mut locs = LocationMap::default();
         let lang = Lang::markdown();
-        preprocess(&mut node, &mut asts, &mut locs, "foo", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "foo", &lang).unwrap();
 
         let moved_block = asts.get("parse:foo#bar").unwrap().lock().unwrap();
         assert_eq!(*moved_block, expected_block);
@@ -596,7 +607,7 @@ mod tests {
         let mut node = NodeBuilder::root().children(vec![block.clone()]).done();
         let mut locs = LocationMap::default();
         let lang = Lang::markdown();
-        preprocess(&mut node, &mut asts, &mut locs, "foo", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "foo", &lang).unwrap();
 
         let new_block = node.children.as_ref().unwrap().first().unwrap();
         assert!(new_block.pointer.is_some());
@@ -622,7 +633,7 @@ mod tests {
         let lang = Lang::markdown();
         locs.insert("file.md".to_string(), PathBuf::from("file.md").into());
         locs.insert("other.md".to_string(), PathBuf::from("other.md").into());
-        preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "file.md", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let block = section.children.as_ref().unwrap().first().unwrap();
@@ -647,7 +658,7 @@ mod tests {
         let lang = Lang::markdown();
         locs.insert("file.md".to_string(), PathBuf::from("file.md").into());
         let (deps, new_asts) =
-            preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
+            preprocess(&mut node, None, &mut asts, &mut locs, "file.md", &lang).unwrap();
 
         assert_eq!(
             deps,
@@ -668,7 +679,8 @@ mod tests {
         locs.insert("file.md".to_string(), PathBuf::from("file.md").into());
         let lang = Lang::markdown();
 
-        let (deps, _) = preprocess(&mut node, &mut asts, &mut locs, "file.md", &lang).unwrap();
+        let (deps, _) =
+            preprocess(&mut node, None, &mut asts, &mut locs, "file.md", &lang).unwrap();
 
         assert_eq!(
             deps,
@@ -703,7 +715,7 @@ mod tests {
         let mut node = NodeBuilder::root().add_section(vec![Node::line("")]).done();
         let mut locs = LocationMap::default();
         let lang = Lang::new(rules).unwrap();
-        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let children = section.children.as_ref().unwrap();
@@ -739,7 +751,7 @@ mod tests {
             .done();
         let mut locs = LocationMap::default();
         let lang = Lang::new(rules).unwrap();
-        preprocess(&mut node, &mut asts, &mut locs, "", &lang).unwrap();
+        preprocess(&mut node, None, &mut asts, &mut locs, "", &lang).unwrap();
 
         let section = node.children.as_ref().unwrap().first().unwrap();
         let children = section.children.as_ref().unwrap();
@@ -757,6 +769,22 @@ mod tests {
                 Node::paragraph(&["bar"]),
             ]
         );
+    }
+
+    #[test]
+    fn test_preprocess_adds_extra_root_headers() {
+        let mut asts = AstMap::default();
+        let mut node = NodeBuilder::root()
+            .headers(Some(vec![Arc::from("FOO")]))
+            .done();
+        let mut locs = LocationMap::default();
+        let lang = Lang::markdown();
+        let root = Some("BAR baz".to_string());
+
+        preprocess(&mut node, root.as_deref(), &mut asts, &mut locs, "", &lang).unwrap();
+
+        let headers = node.headers.clone().expect("headers");
+        assert_eq!(headers, vec!["BAR".into(), "BAZ".into(), "FOO".into()]);
     }
 }
 

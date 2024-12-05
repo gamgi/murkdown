@@ -47,6 +47,10 @@ pub(crate) struct Config {
 pub(crate) enum Command {
     /// Build a graph
     Graph {
+        /// Additional root block headers
+        #[clap(long = "headers", value_name = "HEADERS")]
+        headers: Option<String>,
+
         /// Graph type
         #[arg(value_enum, value_name = "TYPE")]
         graph_type: GraphType,
@@ -63,6 +67,10 @@ pub(crate) enum Command {
     },
     /// Build sources
     Build {
+        /// Additional root block headers
+        #[clap(long = "as", value_name = "HEADERS")]
+        headers: Option<String>,
+
         /// At what semantic level(s) should output be split to files
         #[clap(short, long = "split", value_name = "SPLIT")]
         #[arg(default_values_t = ["ROOT".to_string(), "DOCUMENT".to_string()])]

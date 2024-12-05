@@ -117,7 +117,7 @@ fn process_event(
                     locs.insert(source.path()?, source.into());
                 }
             }
-            Command::Build { ref paths, ref splits } => {
+            Command::Build { ref paths, ref splits, .. } => {
                 info!(target = "status"; "Building {} sources", paths.len());
                 let (sources, parents) = {
                     let locs = state.locations.lock().expect("poisoned lock");

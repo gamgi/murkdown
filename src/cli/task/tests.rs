@@ -37,7 +37,7 @@ async fn test_gather_adds_operationss_for_command() {
     let paths = vec!["data:,Hello%20World!#foo".to_string()];
     let sources = paths.clone().into_iter().map(Source::Url).collect();
     let op = Operation::Gather {
-        cmd: Command::Build { paths, splits: vec![] },
+        cmd: Command::Build { paths, splits: vec![], headers: None },
         sources,
         splits: Some(vec![]),
     };
@@ -84,7 +84,7 @@ async fn test_preprocess_adds_src_operations() {
             .add_prop(("src".into(), "bar".into()))
             .done()])
         .done();
-    let op = Operation::Preprocess { id: "foo".into() };
+    let op = Operation::Preprocess { id: "foo".into(), headers: None };
     let dep = op.uri();
     let ctx = State::new_loaded("markdown");
     ctx.insert_location("bar", PathBuf::from("file.txt"));
@@ -128,8 +128,8 @@ async fn test_preprocess_adds_src_operations() {
                 source: Source::from("file.txt")
             },
             &Operation::Parse { id: "bar".into() },
-            &Operation::Preprocess { id: "bar".into() },
-            &Operation::Preprocess { id: "foo".into() }
+            &Operation::Preprocess { id: "bar".into(), headers: None },
+            &Operation::Preprocess { id: "foo".into(), headers: None }
         ]
     );
 }
@@ -141,7 +141,7 @@ async fn test_preprocess_adds_ref_operations() {
             .add_prop(("ref".into(), "bar".into()))
             .done()])
         .done();
-    let op = Operation::Preprocess { id: "foo".into() };
+    let op = Operation::Preprocess { id: "foo".into(), headers: None };
     let dep = op.uri();
     let ctx = State::new_loaded("markdown");
     ctx.insert_location("bar", PathBuf::from("file.txt"));

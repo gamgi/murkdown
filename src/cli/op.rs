@@ -75,6 +75,7 @@ pub enum Operation {
     },
     Preprocess {
         id: Id,
+        headers: Option<String>,
     },
     Compile {
         id: Id,
@@ -222,7 +223,7 @@ impl From<&Operation> for OpId {
             | Tangle { id, .. }
             | Exec { id, .. }
             | Parse { id, .. }
-            | Preprocess { id }
+            | Preprocess { id, .. }
             | Compile { id, .. }
             | CompilePlaintext { id, .. }
             | Write { id }

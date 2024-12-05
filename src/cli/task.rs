@@ -108,15 +108,16 @@ pub async fn gather(op: Operation, operations: Arc<Mutex<OpGraph>>) -> Result<bo
 
             count += 1;
             match cmd {
-                Command::Build { .. } | Command::Graph { .. } => graph.insert_node_chain([
-                    op.clone(),
-                    Operation::Load { id: id.clone(), source },
-                    Operation::Parse { id: id.clone() },
-                    Operation::Preprocess { id: id.clone() },
-                    Operation::Compile { id: id.clone() },
-                    Operation::Write { id: id.clone() },
-                    Operation::Finish,
-                ]),
+                Command::Build { headers, .. } | Command::Graph { headers, .. } => graph
+                    .insert_node_chain([
+                        op.clone(),
+                        Operation::Load { id: id.clone(), source },
+                        Operation::Parse { id: id.clone() },
+                        Operation::Preprocess { id: id.clone(), headers: headers.clone() },
+                        Operation::Compile { id: id.clone() },
+                        Operation::Write { id: id.clone() },
+                        Operation::Finish,
+                    ]),
                 _ => panic!("gather on bad command"),
             }
         }
@@ -385,7 +386,7 @@ pub async fn preprocess(
     languages: Arc<OnceLock<LangMap>>,
     locations: Arc<Mutex<LocationMap>>,
 ) -> Result<bool, AppError> {
-    let Operation::Preprocess { ref id } = op else {
+    let Operation::Preprocess { ref id, ref headers } = op else {
         unreachable!()
     };
     debug!("Preprocessing {id}");
@@ -405,7 +406,9 @@ pub async fn preprocess(
                 .expect("languages not loaded")
                 .get(&format)
                 .ok_or(AppError::unknown_language(format))?;
-            let (deps, new_asts) = preprocessor::preprocess(&mut node, &mut asts, &locs, id, lang)?;
+            let headers = headers.as_deref();
+            let (deps, new_asts) =
+                preprocessor::preprocess(&mut node, headers, &mut asts, &locs, id, lang)?;
 
             // upsert preprocessed node to ast
             let arc = match asts.entry(uri.to_string()) {
@@ -526,7 +529,7 @@ pub async fn preprocess(
                                 graph.insert_node_chain([
                                     Operation::Load { id: id.clone(), source },
                                     Operation::Parse { id: id.clone() },
-                                    Operation::Preprocess { id },
+                                    Operation::Preprocess { id, headers: None },
                                     op.clone(),
                                 ]);
                             }
@@ -570,7 +573,7 @@ pub async fn preprocess(
                             graph.insert_node_chain([
                                 Operation::Load { id: id.clone(), source },
                                 Operation::Parse { id: id.clone() },
-                                Operation::Preprocess { id: id.clone() },
+                                Operation::Preprocess { id: id.clone(), headers: None },
                                 Operation::Compile { id: id.clone() },
                                 Operation::Write { id: id.clone() },
                                 Operation::Finish,
