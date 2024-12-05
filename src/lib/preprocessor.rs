@@ -77,6 +77,7 @@ fn preprocess_recursive<'a>(
         }
         Rule::Section => {
             preprocess_paragraphs(node, &settings);
+            preprocess_includes(node, asts, locs, context, deps, &settings);
         }
         _ => {}
     }

@@ -1,8 +1,5 @@
 [!PAGE](title="Example blog" lang="en")
-[~HEADER]
-
-# My blog
-
+[~HEADER](src="header.md.part")
 [~MAIN]
 
 This is an example blog.

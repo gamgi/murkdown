@@ -72,10 +72,13 @@ fn parse_recursive<'a>(
             let base = NodeBuilder::new(Rule::Section);
             let mut pairs = pair.into_inner().peekable();
             let _ = take_marker(&mut pairs);
-            let _ = take_headers(&mut pairs);
+            let headers = take_headers(&mut pairs);
             let props = take_props(&mut pairs);
             let children = parse_recursive(pairs);
-            let node = base.add_children(children).try_props(props);
+            let node = base
+                .headers(headers)
+                .add_children(children)
+                .try_props(props);
             Some(node.build().unwrap())
         }
         _ => Some(Node::new(&pair)),
