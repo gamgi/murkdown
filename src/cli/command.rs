@@ -48,7 +48,7 @@ pub(crate) enum Command {
     /// Build a graph
     Graph {
         /// Additional root block headers
-        #[clap(long = "headers", value_name = "HEADERS")]
+        #[clap(long = "as", value_name = "HEADERS")]
         headers: Option<String>,
 
         /// Graph type
