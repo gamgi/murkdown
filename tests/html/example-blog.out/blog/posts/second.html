@@ -5,14 +5,38 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.10.0/styles/default.min.css">
+  <script src="https://unpkg.com/@highlightjs/cdn-assets@11.10.0/highlight.min.js"></script>
+  <style>.hljs { background: unset; } .quote { background: #f9f9f9; border-left: .25em solid #ccc; margin: 1.5em 0; padding: 0.5em; quotes: "/201C" "/201D" "/2018" "/2019"; } .quote:before { color: #ccc; content: open-quote; font-size: 4em; line-height: 1rem; height: 0; display: block; } .tip { padding: 0.5rem; margin-bottom: 16px; color: inherit; border-left: .25em solid rgb(31, 136, 61); } .tip::before { content: "⚲ Tip"; color: rgb(26, 127, 55); margin-right: 0.5rem; font-size: 1rem; } </style>
 </head>
 <body class="">
-  <main>    
+  <main class="">    
     <h1>Second post</h1>
     
     This is the second post.
+    
+    <aside class="tip">
+      <p>
+        This is an aside.
+        For notes and details off to the side.
+      </p>
+    </aside>
+
+    
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+    
+    
+    <pre class="code "><code class="language-python"># this is code
+for i in range(10):
+  print("hello world")
+</code></pre>
+    
+    Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+    Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum
   </main>
 
+  <script>hljs.highlightAll();</script>
 </body>
 </html>
 

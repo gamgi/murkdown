@@ -1,4 +1,4 @@
-[!SIMPLE WEBSITE PAGE](title="Example blog" lang="en")
+[!PAGE](title="Example blog" lang="en")
 [~HEADER]
 
 # My blog
@@ -10,5 +10,5 @@ This is an example blog.
 ## Posts
 
 * [!LIST]
-*> [!LINK](href="posts/first.md") First post
-*> [!LINK](href="posts/second.md") Second post
+*> [!LINK](href="posts/first.html") First post
+*> [!LINK](href="posts/second.html") Second post

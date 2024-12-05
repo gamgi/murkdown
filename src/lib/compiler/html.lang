@@ -109,6 +109,7 @@ COMPILE RULES:
 [...LINK...]$
   WRITEALL indent
   WRITE "<a href=\"$href\" class=\"$class:j\">\n"
+  DRAIN class
   PUSH indent "  "
   YIELD
   POP indent
@@ -118,8 +119,9 @@ COMPILE RULES:
 
 /* image & figure */
 [...FIGURE...]$
-  PUSH indent "  "
+  WRITEALL indent
   WRITE "<figure>\n"
+  PUSH indent "  "
   YIELD
   WRITE "\n"
   POP indent
@@ -143,6 +145,7 @@ COMPILE RULES:
 [...IMAGE...]$
   WRITEALL indent
   WRITE "<img src=\"$ref\" class=\"$class:j\" alt=\""
+  DRAIN class
   YIELD
   WRITE "\" />"
 
@@ -225,11 +228,24 @@ COMPILE RULES:
   IS COMPOSABLE
   WRITEALL indent
   WRITE "<link rel=\"stylesheet\" href=\"https://cdn.simplecss.org/simple.min.css\">\n"
+  WRITEALL indent
+  WRITE "<link rel=\"stylesheet\" href=\"https://unpkg.com/@highlightjs/cdn-assets@11.10.0/styles/default.min.css\">\n"
+  WRITEALL indent
+  WRITE "<script src=\"https://unpkg.com/@highlightjs/cdn-assets@11.10.0/highlight.min.js\"></script>\n"
+  WRITEALL indent
+  WRITE "<style>"
+  WRITE ".hljs { background: unset; } "
+  WRITE ".quote { background: #f9f9f9; border-left: .25em solid #ccc; margin: 1.5em 0; padding: 0.5em; quotes: \"\201C\" \"\201D\" \"\2018\" \"\2019\"; } "
+  WRITE ".quote:before { color: #ccc; content: open-quote; font-size: 4em; line-height: 1rem; height: 0; display: block; } "
+  WRITE ".tip { padding: 0.5rem; margin-bottom: 16px; color: inherit; border-left: .25em solid rgb(31, 136, 61); } "
+  WRITE ".tip::before { content: \"⚲ Tip\"; color: rgb(26, 127, 55); margin-right: 0.5rem; font-size: 1rem; } "
+  WRITE "</style>\n"
 
 ^[...WEBSITE...]$
   IS COMPOSABLE
   WRITE "</head>\n"
   WRITE "<body class=\"$class:j\">\n"
+  DRAIN class
   YIELD
   WRITE "</html>\n"
 
@@ -238,11 +254,12 @@ COMPILE RULES:
   YIELD
   POP indent
   WRITE "\n"
+  WRITE "  <script>hljs.highlightAll();</script>\n"
   WRITE "</body>\n"
 
 ^[...WEBSITE...] [SEC...HEADER]$
   WRITEALL indent
-  WRITE "<header>"
+  WRITE "<header>\n"
   PUSH indent "  "
   YIELD
   WRITE "\n"
@@ -252,13 +269,36 @@ COMPILE RULES:
 
 ^[...WEBSITE...] [SEC...]$
   WRITEALL indent
-  WRITE "<main>"
+  WRITE "<main class=\"$class:j\">"
+  DRAIN class
   PUSH indent "  "
   YIELD
   WRITE "\n"
   POP indent
   WRITEALL indent
   WRITE "</main>\n"
+
+^[...WEBSITE...] .*[...NAV...]$
+  WRITEALL indent
+  WRITE "<nav class=\"$class:j\">\n"
+  DRAIN class
+  PUSH indent "  "
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITEALL indent
+  WRITE "</nav>\n"
+
+^[...WEBSITE...] .*[...ASIDE...]$
+  WRITEALL indent
+  WRITE "<aside class=\"$class:j\">\n"
+  DRAIN class
+  PUSH indent "  "
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITEALL indent
+  WRITE "</aside>\n"
 
 /* other */
 [SEC...]$

@@ -1,12 +1,7 @@
 bin.name = "md"
-args = "-vv --output . --format html build blog/"
+args = """--output . --format html build --as "SIMPLE WEBSITE" blog/"""
 stderr = ""
 stdout = """
 [INFO] Building 1 sources
-...
-[DEBUG] Indexed 3 files
-...
-[DEBUG] Gathered 3 files
-...
 [INFO] Done
 """

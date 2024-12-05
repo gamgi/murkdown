@@ -1,4 +1,5 @@
-[!SIMPLE WEBSITE PAGE]
+[!PAGE]
+[~MAIN]
 
 # First post
 
