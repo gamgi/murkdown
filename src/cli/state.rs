@@ -134,6 +134,11 @@ fn process_event(
                     Operation::Finish,
                 ]);
             }
+            Command::Clear => {
+                info!(target = "status"; "Clearing");
+                state.clear();
+                tasks.clear();
+            }
             Command::Exit => state.should_exit.store(true, Ordering::Relaxed),
         },
         Event::Command(Err(e)) => {

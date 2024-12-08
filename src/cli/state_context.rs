@@ -109,11 +109,14 @@ impl State {
     }
 
     /// Clear state
-    #[allow(dead_code)]
-    pub fn clear(&mut self) {
-        let mut ops = self.operations.lock().expect("poisoned lock");
-        ops.clear();
-        let mut processed = self.operations_processed.lock().expect("poisoned lock");
-        processed.clear();
+    pub fn clear(&self) {
+        self.asts.lock().expect("poisoned lock").clear();
+        self.operations.lock().expect("poisoned lock").clear();
+        self.operations_processed
+            .lock()
+            .expect("poisoned lock")
+            .clear();
+        self.locations.lock().expect("poisoned lock").clear();
+        self.artifacts.lock().expect("poisoned lock").clear();
     }
 }
