@@ -7,7 +7,7 @@ exit
 """
 stdout = """
 [INFO] Indexing 1 sources
-[INFO] Building 1 sources
+[INFO] Building 1 sources to stdout
 hello
 
 > world

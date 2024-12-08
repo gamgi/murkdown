@@ -1,7 +1,7 @@
 bin.name = "md"
 args = "--output stdout --format markdown build a.md"
 stdout = """
-[INFO] Building 1 sources
+[INFO] Building 1 sources to stdout
 
 A Let's do some Fibonacci numbers.
 Define the function:

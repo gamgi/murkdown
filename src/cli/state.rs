@@ -58,7 +58,7 @@ pub async fn handle_state(
 
 fn process_event(
     event: Event,
-    _config: &Config,
+    config: &Config,
     tasks: &mut FuturesUnordered<BoxFuture<'static, Result<bool, AppError>>>,
     state: &State,
 ) -> Result<(), AppError> {
@@ -118,7 +118,7 @@ fn process_event(
                 }
             }
             Command::Build { ref paths, ref splits, .. } => {
-                info!(target = "status"; "Building {} sources", paths.len());
+                info!(target = "status"; "Building {} sources to {}", paths.len(), config.output.as_ref().unwrap());
                 let (sources, parents) = {
                     let locs = state.locations.lock().expect("poisoned lock");
                     get_sources_and_parents(paths, locs)?

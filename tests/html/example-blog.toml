@@ -2,7 +2,7 @@ bin.name = "md"
 args = """--output . --format html build --as "SIMPLE WEBSITE" blog/"""
 stderr = ""
 stdout = """
-[INFO] Building 1 sources
+[INFO] Building 1 sources to .
 [WARN] Copying blog/posts/img1.png skipped since source and destination are the same
 [INFO] Done
 """

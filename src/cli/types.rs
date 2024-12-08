@@ -40,6 +40,16 @@ pub enum Output {
     Path(PathBuf),
 }
 
+impl std::fmt::Display for Output {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Output::StdOut => write!(f, "stdout"),
+            Output::StdOutLog => write!(f, "stdout"),
+            Output::Path(path_buf) => write!(f, "{}", path_buf.display()),
+        }
+    }
+}
+
 /// Data Source
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum Source {
