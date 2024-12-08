@@ -3,6 +3,7 @@ name = "murkdown"
 categories = ["compilers", "parser-implementations", "command-line-utilities", "web-programming", "text-processing"]
 description = "An experimental semantic markup language and static site generator for composing and decomposing hypertext documents"
 edition = "2021"
+exclude = ["examples/", "tests/"]
 keywords = ["markup", "markdown", "hypertext", "generator", "literate-programming"]
 license = "AGPL-3.0-only"
 repository = "https://github.com/gamgi/murkdown"
