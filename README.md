@@ -12,6 +12,58 @@ If you have installed the Rust toolchain, you can install using cargo:
 cargo install murkdown
 ```
 
+## Quick Start
+
+Create the file `example.md` with the follow content:
+```
+# Exciting times!
+
+You see, it's like Markdown on the surface.
+
+You can write paragraphs.
+
+* And
+* Create
+* Lists
+
+> [!TIP]
+> You can make callouts.
+
+And that's where the similarities end.
+
+> [!TABS]
+>> [!CODE](language="python" id="foo")
+>> def foo():
+>>   print("hello world")
+>
+>> [!CODE](language="typescript" id="bar")
+>> const bar = () => console.log("hello world")
+>
+>> [!CODE](language="plaintext" id="baz" src="archimedes")
+
+And they can be composed, in exciting ways:
+
+> [!NOTE LIST](id="archimedes")
+> The more you know, the more you know you don't know.
+> Our problem is not that we aim too high and miss, but that we aim too low and hit.
+
+That's enough to get you started.
+```
+
+Compile it by invoking the Murkdown cli:
+```console
+$ md build --as "simple website" ./example.md
+```
+
+Open the result from `build/`:
+```console
+$ open build/example.html
+```
+
+## Examples
+
+For more examples, head over to the [tests](https://github.com/gamgi/murkdown/tree/main/tests) and corresponding `*.in/` directories therein.
+
 ## Design
 
 Some of the principles fueling the work:
