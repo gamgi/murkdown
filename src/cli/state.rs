@@ -109,6 +109,9 @@ fn process_event(
                     Operation::Write { id },
                 ]);
             }
+            Command::Ping => {
+                info!(target = "status"; "Pong");
+            }
             Command::Index { ref paths, .. } => {
                 info!(target = "status"; "Indexing {} sources", paths.len());
                 let mut locs = state.locations.lock().expect("poisoned lock");

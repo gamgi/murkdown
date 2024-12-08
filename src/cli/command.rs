@@ -65,6 +65,9 @@ pub(crate) enum Command {
         /// Input paths or data URLs
         paths: Vec<String>,
     },
+    /// Ping
+    #[clap(hide = true)]
+    Ping,
     /// Build sources
     Build {
         /// Additional root block headers
