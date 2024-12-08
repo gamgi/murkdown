@@ -1,0 +1,8 @@
+bin.name = "md"
+args = """--output . --format html build --as "slideshow website" slideshow.md"""
+stderr = ""
+stdout = """
+[INFO] Building 1 sources to .
+[WARN] Copying img1.png skipped since source and destination are the same
+[INFO] Done
+"""

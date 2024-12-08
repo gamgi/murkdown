@@ -262,6 +262,18 @@ COMPILE RULES:
   WRITE ".hljs { background: unset; } "
   WRITE "</style>\n"
 
+^[SLIDESHOW WEBSITE...]$
+  IS COMPOSABLE
+  WRITEALL indent
+  WRITE "<link rel=\"stylesheet\" href=\"https://unpkg.com/reveal.js@^5//dist/reset.css\">\n"
+  WRITEALL indent
+  WRITE "<link rel=\"stylesheet\" href=\"https://unpkg.com/reveal.js@^5//dist/reveal.css\">\n"
+  WRITEALL indent
+  WRITE "<link rel=\"stylesheet\" href=\"https://unpkg.com/reveal.js@^5//dist/theme/white.css\" id=\"theme\">\n"
+  WRITEALL indent
+  WRITE "<link rel=\"stylesheet\" href=\"https://unpkg.com/@highlightjs/cdn-assets@11.4.0/styles/default.min.css\">\n"
+  PUSH class "reveal"
+
 ^[...WEBSITE...]$
   IS COMPOSABLE
   WRITE "</head>\n"
@@ -274,9 +286,26 @@ COMPILE RULES:
   IS COMPOSABLE
   YIELD
   POP indent
+  WRITE "</body>\n"
+
+^[SLIDESHOW WEBSITE...]$
+  IS COMPOSABLE
+  WRITEALL indent
+  WRITE "<div class=\"slides\">\n"
+  PUSH indent "  "
+  YIELD
+  POP indent
+  WRITE "\n"
+  WRITEALL indent
+  WRITE "</div>\n"
+  WRITE "  <script type=\"module\">\n    import Reveal from 'https://unpkg.com/reveal.js@^5//dist/reveal.esm.js';\n    import Highlight from 'https://unpkg.com/reveal.js@^5//plugin/highlight/highlight.esm.js';\n    Reveal.initialize({ plugins: [Highlight] });\n  </script>\n"
+
+^[SIMPLE WEBSITE...]$
+  IS COMPOSABLE
+  YIELD
+  POP indent
   WRITE "\n"
   WRITE "  <script>hljs.highlightAll();</script>\n"
-  WRITE "</body>\n"
 
 ^[...WEBSITE...] [SEC...HEADER]$
   WRITEALL indent
@@ -287,6 +316,17 @@ COMPILE RULES:
   POP indent
   WRITEALL indent
   WRITE "</header>\n"
+
+^[...SLIDESHOW...] [SEC...]$
+  WRITEALL indent
+  WRITE "<section class=\"$class:j\">"
+  DRAIN class
+  PUSH indent "  "
+  YIELD
+  WRITE "\n"
+  POP indent
+  WRITEALL indent
+  WRITE "</section>\n"
 
 ^[...WEBSITE...] [SEC...]$
   WRITEALL indent

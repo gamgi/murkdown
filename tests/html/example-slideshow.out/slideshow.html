@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+  <title></title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>ul { padding-left: 1.5rem; } .quote { background: #f9f9f9; border-left: .25em solid #ccc; margin: 1.5em 0; padding: 0.5em; quotes: "/201C" "/201D" "/2018" "/2019"; } .quote:before { color: #ccc; content: open-quote; font-size: 4em; line-height: 1rem; height: 0; display: block; } .tip { margin-bottom: 16px; color: inherit; border-left: .25em solid rgb(26, 127, 55); } .tip::before { margin-left: 0.5rem; content: "⚲ Tip"; color: rgb(26, 127, 55); margin-right: 0.5rem; font-size: 1rem; } .note { margin-bottom: 16px; color: inherit; border-left: .25em solid rgb(9, 105, 218); } .note::before { margin-left: 0.5rem; content: "ⓘ Note"; color: rgb(9, 105, 218); margin-right: 0.5rem; font-size: 1rem; } .tabs { display: grid; grid-auto-columns: 1fr; margin: 0; } .tabs > label { grid-row: 1; display: block; padding: 2px 10px 0px 10px; text-align: center; border: solid var(--border); border-width: 1px 1px 0 1px; border-radius: 10px 10px 0px 0px; color: #514f4f; } .tabs label > p { line-height: 0; font-size: 12px; } .tabs label:hover { cursor: pointer; background-color: #bbb; } .tabs input:checked + label { background-color: var(--accent-bg); color: var(--accent); box-shadow: 5px 0px 7px #aaa; z-index: 0; } .tabs input { display: none; } .tabs input:checked + label + .tabs-content { display: block; grid-column-start: span 10; } .tabs input:checked + label + .tabs.tabs-content { display: grid; } .tabs > .tabs-content { grid-row: 2; display: none; margin-top: 0 !important; z-index: 1; } .code.tabs-content { border-top-left-radius: 0; } pre { background-color: #f3f3f3; padding-left: 0.5rem; } </style>
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^5//dist/reset.css">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^5//dist/reveal.css">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^5//dist/theme/white.css" id="theme">
+  <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.4.0/styles/default.min.css">
+</head>
+<body class="reveal">
+  <div class="slides">
+    <section class="">      
+      <h1>This is an example slideshow</h1>
+      
+    </section>
+
+    <section class="">      
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+      
+      <figure>
+        <img src="img1.png" />
+        
+        <figcaption>
+          This is an image
+        </figcaption>
+      </figure>
+      
+    </section>
+
+    <section class="">      
+      <pre class="code "><code class="language-python"># this is code
+for i in range(10):
+  print("hello world")
+</code></pre>
+      
+      Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+      Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum
+    </section>
+
+  </div>
+  <script type="module">
+    import Reveal from 'https://unpkg.com/reveal.js@^5//dist/reveal.esm.js';
+    import Highlight from 'https://unpkg.com/reveal.js@^5//plugin/highlight/highlight.esm.js';
+    Reveal.initialize({ plugins: [Highlight] });
+  </script>
+</body>
+</html>
+

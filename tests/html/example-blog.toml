@@ -1,5 +1,5 @@
 bin.name = "md"
-args = """--output . --format html build --as "SIMPLE WEBSITE" blog/"""
+args = """--output . --format html build --as "simple website" blog/"""
 stderr = ""
 stdout = """
 [INFO] Building 1 sources to .
