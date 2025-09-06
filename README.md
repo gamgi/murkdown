@@ -4,26 +4,25 @@ An experimental semantic markup language and static site generator for composing
 
 ## Installation
 
-Requires Rust **nightly** toolchain.
+Requires Rust **nightly** toolchain and Docker.
 
 ### Build from source
 
-```shell
-# optionally uncomment relevant plaform stanza in docker-compose.yaml
-cargo build
-docker compose up --build
+Replace `<ARCH>` below with your architecture, Eg. `aarch64` or `x86_64`.
+
+```console
+rustup target add <ARCH>-unknown-linux-musl
+cargo build --target <ARCH>-unknown-linux-musl
+ARCH=<ARCH> docker compose up --build
 open http://localhost:8000/
 ```
 
-A live playground is provided for experimentation.
+## Quick start (playground)
 
-### Using Cargo
+Follow the instructions for [build from source](#build-from-source).
+A live in-browser playground will be available at `http://localhost:8000/`.
 
-```shell
-cargo install --git https://github.com/gamgi/murkdown
-```
-
-## Quick Start
+## Quick start (command line)
 
 Create the file `example.md` with the follow content:
 ```
@@ -54,7 +53,7 @@ And that's where the similarities end.
 
 And they can be composed, in exciting ways:
 
-> [!NOTE LIST](id="archimedes")
+> [!LIST QUOTE](id="archimedes")
 > The more you know, the more you know you don't know.
 > Our problem is not that we aim too high and miss, but that we aim too low and hit.
 
@@ -64,12 +63,18 @@ That's enough to get you started.
 Compile it by invoking the Murkdown cli:
 ```console
 $ md build --as "simple website" ./example.md
+# or
+$ cargo run -- build --as "simple website" ./example.md
 ```
 
 Open the result from `build/`:
 ```console
 $ open build/example.html
 ```
+
+It should look as follows:
+
+![Example output](https://github.com/gamgi/murkdown/blob/main/example-output.png?raw=true)
 
 ## Examples
 

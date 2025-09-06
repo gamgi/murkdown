@@ -6,6 +6,7 @@ services:
       - "8000:8000"
     volumes:
       - ./src/ui/:/var/www/public
-      - ./target/debug/md:/usr/bin/md
+      #- ./target/debug/md:/usr/local/bin/md
+      - ./target/${ARCH}-unknown-linux-musl/debug/md:/usr/local/bin/md
     # platform: linux/amd64
     # platform: linux/arm64
