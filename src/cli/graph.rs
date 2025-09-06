@@ -1,4 +1,6 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
+
+use hashbrown::HashMap;
 
 use super::op::{OpId, Operation};
 

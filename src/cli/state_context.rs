@@ -1,9 +1,10 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     path::PathBuf,
     sync::{atomic::AtomicBool, Arc, Mutex, OnceLock},
 };
 
+use hashbrown::HashMap;
 use murkdown::compiler::Lang;
 use murkdown::types::{AstMap, LocationMap};
 

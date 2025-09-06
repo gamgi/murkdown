@@ -1,10 +1,8 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use clap::error::Error as ClapError;
 use data_url::{forgiving_base64::InvalidBase64, DataUrl, DataUrlError};
+use hashbrown::HashMap;
 use murkdown::{
     compiler::Lang,
     types::{LibError, Location, URI},

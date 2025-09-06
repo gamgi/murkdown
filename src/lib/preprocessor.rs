@@ -1,6 +1,7 @@
-use std::collections::hash_map::Entry;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
+
+use hashbrown::hash_map::Entry;
 
 use crate::ast::{Node, NodeBuilder};
 use crate::compiler::lang::Lang;

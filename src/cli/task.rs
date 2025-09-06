@@ -1,5 +1,4 @@
 use std::{
-    collections::hash_map::Entry,
     fmt::Write,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
@@ -8,6 +7,7 @@ use std::{
 
 use data_url::DataUrl;
 use either::Either;
+use hashbrown::hash_map::Entry;
 use log::{debug, info, trace, warn};
 use mime2ext::mime2ext;
 use murkdown::{

@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::OnceLock;
 use std::{borrow::Cow, sync::Arc};
 
+use hashbrown::HashMap;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;

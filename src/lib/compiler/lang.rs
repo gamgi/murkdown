@@ -150,21 +150,15 @@ impl Lang {
                 ("PUSH", [StackRef(target), PropRef(prop)]) => {
                     if let Some(value) = node.find_prop(prop) {
                         ctx.stacks
-                            .raw_entry_mut()
-                            .from_key(target.as_str())
-                            .or_insert(Arc::from(target.as_str()), vec![])
-                            .1
+                            .entry_ref(target.as_str())
+                            .or_insert(vec![])
                             .push(value.to_string().into());
                     }
                 }
                 ("SET", [StackRef(target), Str(value)]) => {
                     let value = replace(value, ctx, node, set);
-                    let v = ctx
-                        .stacks
-                        .raw_entry_mut()
-                        .from_key(target.as_str())
-                        .or_insert(Arc::from(target.as_str()), vec![])
-                        .1;
+                    let v = ctx.stacks.entry_ref(target.as_str()).or_insert(vec![]);
+                    //.or_insert(Arc::from(target.as_str()), vec![])
                     v.pop();
                     v.push(Cow::Owned(value.to_string()));
                 }

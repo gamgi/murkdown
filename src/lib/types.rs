@@ -1,9 +1,9 @@
 use std::{
-    collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex, Weak},
 };
 
+use hashbrown::HashMap;
 use thiserror::Error;
 
 use crate::{
