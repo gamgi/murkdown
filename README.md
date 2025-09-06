@@ -8,8 +8,6 @@ Requires Rust **nightly** toolchain.
 
 ### Build from source
 
-Replace <ARCH> below with your architecture, Eg. `aarch64` or `x86_64`.
-
 ```shell
 # optionally uncomment relevant plaform stanza in docker-compose.yaml
 cargo build
