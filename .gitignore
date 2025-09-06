@@ -1,4 +1,5 @@
 /target
 /.vscode
 /.zed
+/build
 .DS_Store

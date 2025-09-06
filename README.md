@@ -11,10 +11,9 @@ Requires Rust **nightly** toolchain.
 Replace <ARCH> below with your architecture, Eg. `aarch64` or `x86_64`.
 
 ```shell
-rustup target add <ARCH>-unknown-linux-musl
-cargo build --target <ARCH>-unknown-linux-musl
 # optionally uncomment relevant plaform stanza in docker-compose.yaml
-docker copose up --build
+cargo build
+docker compose up --build
 open http://localhost:8000/
 ```
 
