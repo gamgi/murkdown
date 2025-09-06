@@ -1,0 +1,325 @@
+/**
+ * Editor layout
+ **/
+body {
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    background-color: #f5f5f5;
+    height: 5vh;
+}
+
+header .name {
+    padding: 0.5em;
+    font-size: 1.5em;
+}
+
+header #status {
+    flex-grow: 1;
+    text-align: right;
+    padding: 0.5em;
+    color: cornflowerblue;
+}
+
+main {
+    display: flex;
+    height: 95vh;
+}
+
+
+/* Editor */
+#editor {
+    display: flex;
+    max-height: 100%;
+    flex-grow: 1;
+}
+#editor #left {
+    padding: 0.2em;
+    flex: 1 1 0px;
+    display: flex;
+    flex-direction: column;
+    border-right: 2px solid #f5f5f5;
+    background-color: #f5f5f5;
+}
+
+#editor #left > .tabs {
+    flex: 1 1 0px;
+    grid-template-rows: auto 1fr;
+}
+
+#editor #left > .tabs > form {
+    margin-left: 0.5em;
+    flex: 1 1 0px;
+}
+
+#editor #left > .tabs > .tabs-content > textarea {
+    width: 100%;
+    height: 100%;
+    outline: none;
+    border: none;
+    padding: 0;
+    padding-left: 0.2em;
+    margin: 0;
+    font-family: Consolas, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Courier New, monospace;
+}
+
+#left > .tabs > input + label {
+    background-color: white;
+}
+#left > .tabs > input:not(:checked) + label {
+    background-color: #f3f3f3
+}
+
+#left > .tabs > form > textarea {
+    width: 100%;
+    height: 100%;
+    outline: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: Consolas, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Courier New, monospace;
+}
+
+/**
+ * Preview and content
+ **/
+#editor #right {
+    flex: 1 1 0px;
+    overflow-y: scroll;
+}
+
+#root {
+    color: rgb(27, 27, 27);
+    flex: 1 1 50%;
+    padding: 0.5rem 0.5rem;
+    height: 100%;
+}
+
+#root div:not(.controls-arrow):not(.reveal) {
+    /* airy spacing */
+    padding-top: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+#root p {
+    padding-top: 0.5rem;
+}
+
+#root h1 {
+    margin: 1rem 0;
+    font-size: 2em;
+}
+
+#root h2 {
+    margin: 1rem 0;
+    font-size: 1.5em;
+}
+
+#root h3 {
+    margin: 1rem 0;
+    font-size: 1.3em;
+}
+
+.card {
+    padding: 0.5rem;
+    border-top: 1px solid rgba(0, 0, 0, .125);
+    border-right: 1px solid rgba(0, 0, 0, .125);
+    border-bottom: 1px solid rgba(0, 0, 0, .125);
+    border-left: 1px solid rgba(0, 0, 0, .125);
+    border-radius: .25rem;
+    box-shadow: 5px 0px 7px #aaa;
+}
+
+.code {
+    font-family: Monaco, monospace;
+}
+
+.quote {
+    background: #f9f9f9;
+    border-left: .25em solid #ccc;
+    padding: 0.5em;
+    quotes: "\201C" "\201D" "\2018" "\2019";
+}
+
+.tip::before {
+    content: "⚲ Tip";
+    color: rgb(26, 127, 55);
+    margin-right: 0.5rem;
+    font-size: 1rem;
+}
+
+.tabs.tip::before {
+    grid-row-start: -2;
+}
+
+.quote:before {
+    color: #ccc;
+    content: open-quote;
+    font-size: 4em;
+    line-height: 1rem;
+    height: 0;
+    display: block;
+}
+
+.quote > .hljs, .tip > .hljs {
+    background: unset;
+}
+
+.tip {
+    padding: 0.5rem;
+    margin-bottom: 16px;
+    color: inherit;
+    border-left: .25em solid rgb(31, 136, 61);
+}
+
+pre.tip {
+    display: block;
+}
+
+li > code {
+    padding-top: 0 !important;
+}
+
+#root .note {
+    border-left: .25em solid rgb(9, 105, 218);
+    margin: 0 0.25rem;
+}
+
+#root .note > p {
+    margin: 0.25em 0;
+}
+
+#root .note::before {
+    content: "ⓘ Note";
+    color: rgb(9, 105, 218);
+    margin-right: 0.5rem;
+    font-size: 1rem;
+}
+
+#root ul {
+    padding-left: 1.5rem;
+}
+
+.grid {
+    display: grid;
+    grid-gap: 10px;
+    grid-auto-rows: minmax(200px, auto);
+    /* default */
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.grid > * {
+    border: 1px solid #444;
+    border-radius: 5px;
+    padding: 20px;
+}
+
+.grid-1 { grid-template-columns: repeat(1, 1fr); }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* Reveal */
+.reveal {
+    border: 1px solid #eee;
+
+}
+.tip.reveal .controls button {
+    color: rgb(26, 127, 55);
+}
+.note.reveal .controls button {
+    color: rgb(9, 105, 218);
+}
+.quote.reveal .controls button {
+    color: #ccc;
+}
+
+:root {
+    --r-main-font-size: 1em;
+    --r-heading-font-weight: normal;
+    --r-heading-text-transform: none;
+    --r-code-font: monospace;
+}
+
+.reveal,
+.reveal.center,
+.reveal.embedded {
+    max-height: 400px;
+}
+
+body.slideshow {
+    padding: 1em;
+}
+
+.reveal .slides {
+    text-align: unset;
+}
+
+.reveal > .slides > section {
+    padding: 0.5em 0;
+}
+
+.reveal .slide-background.present {
+    visibility: hidden !important;
+}
+
+/* Tabs */
+.tabs {
+    display: grid;
+    grid-auto-columns: 1fr;
+    margin: 0;
+}
+
+.tabs > label {
+    grid-row: 1;
+    display: block;
+    padding: 2px 10px 0px 10px;
+    text-align: center;
+    border-radius: 10px 10px 0px 0px;
+    color: #514f4f;
+}
+
+.tabs label > p {
+    line-height: 0;
+    font-size: 12px;
+}
+
+.tabs label:hover {
+    cursor: pointer;
+    background-color: #bbb;
+}
+
+.tabs input:checked + label {
+    background-color: #f3f3f3;
+    color: #333333;
+    box-shadow: 5px 0px 7px #aaa;
+    z-index: 0;
+}
+
+.tabs input {
+    display: none;
+}
+
+.tabs input:checked + label + .tabs-content {
+    display: block;
+    grid-column-start: span 12;
+}
+
+.tabs input:checked + label + .tabs.tabs-content {
+    display: grid;
+}
+
+.tabs > .tabs-content {
+    grid-row: 2;
+    display: none;
+    margin: 0 !important;
+    z-index: 1;
+}

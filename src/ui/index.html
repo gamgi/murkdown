@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Murkdown Playground</title>
+    <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/htmx-ext-ws@2.0.1/ws.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/reveal.js@^5/dist/reveal.css">
+    <link rel="stylesheet" href="https://unpkg.com/reveal.js@^5/dist/theme/white.css" id="theme">
+    <link rel="stylesheet" href="https://unpkg.com/reveal.js@^5/dist/reset.css">
+    <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@11.10.0/styles/default.min.css">
+    <script src="https://unpkg.com/@highlightjs/cdn-assets@11.10.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body hx-ext="ws" ws-connect="/editor">
+    <header>
+        <div class="name">Murkdown Playground</div>
+        <div id="status">Connecting</div>
+    </header>
+    <main id="editor" >
+        <div id="left">
+            <form class="tabs" ws-send>
+                <input type="hidden" name="command" value="build" />
+                <input type="radio" name="index" id="xutdjr-0" value="0" checked>
+                <label for="xutdjr-0">foo.md</label>
+                <div class="code tabs-content">
+                    <textarea ws-send spellcheck="false" hx-trigger="keyup changed delay:250ms, load, change from:previous input" name="content">
+# Exciting times!
+
+You see, it's like Markdown on the surface.
+
+You can write paragraphs.
+
+* And
+* Create
+* Lists
+
+> [!TIP]
+> You can make callouts.
+
+And that's where the similarities end.
+
+> [!TABS]
+>> [!CODE](id="tab1" language="python")
+>> def fib(n):
+>>   if n < 2:
+>>     return n
+>>   else:
+>>     return fib(n-1) + fib(n-2)
+>
+>> [!CODE](id="tab2" language="plaintext" src="bar.md")
+>> This will be replace with content from bar.md
+
+Everything is based on blocks.
+And they can be composed, in exciting ways:
+
+> [!QUOTE LIST](id="archimedes")
+> The more you know, the more you know you don't know.
+> Our problem is not that we aim too high and miss, but that we aim too low and hit.
+
+That's enough to get you started.
+</textarea>
+                    <input type="hidden" name="id" value="root" />
+                </div>
+                <input type="radio" name="index" id="xutdjr-1" value="1">
+                <label for="xutdjr-1">bar.md</label>
+                <div class="code tabs-content" hx-include="previous input">
+                    <textarea ws-send spellcheck="false" hx-trigger="keyup changed delay:250ms, change from:previous input" name="content">
+This is the file bar.md</textarea>
+                    <input type="hidden" name="id" value="bar.md" />
+                </div>
+            </form>
+        </div>
+        <form id="right">
+            <div id="root" name="content"></div>
+        </form>
+    </main>
+
+    <script type="module">
+        import Reveal from 'https://unpkg.com/reveal.js@5.2.1/dist/reveal.esm.js';
+        import Highlight from 'https://unpkg.com/reveal.js@5.2.1/plugin/highlight/highlight.esm.js';
+        const $ = document.querySelector.bind(document);
+        const toDataURL = (content) => `data:text/plain;base64,${btoa(content + "\n")}`;
+
+        // Add command before sending
+        document.body.addEventListener("htmx:wsConfigSend", (e) => {
+          const command = e.detail.parameters.command;
+          if (command == "build") {
+
+            let idxs, ids, contents;
+            if (e.detail.parameters.id instanceof Array) {
+              idxs = [...Array(e.detail.parameters.id.length).keys()];
+              ids =  e.detail.parameters.id;
+              contents =  e.detail.parameters.content;
+            } else {
+              idxs = [0];
+              ids =  [e.detail.parameters.id];
+              contents = [e.detail.parameters.content];
+            }
+            let files = idxs.map(idx => `"${toDataURL(contents[idx])}#${ids[idx]}"`)
+            e.detail.messageBody = `clear\nindex ` + files.join(' ') + `\nbuild root`;
+          } else if (command == "help") {
+            e.detail.messageBody = `--help`
+          }
+        });
+
+        // Highlight code blocks after receiving
+        document.body.addEventListener("htmx:wsAfterMessage", (evt) => {
+          hljs.highlightAll();
+        });
+
+        // Show connection status
+        document.body.addEventListener('htmx:wsOpen', (evt) => {
+            $('#status').innerText = 'Connected'
+        })
+        document.body.addEventListener('htmx:wsClose', (evt) => {
+            $('#status').innerText = 'Not Connected'
+        })
+
+        // Make SLIDESHOW work
+        const reveals = [];
+        document.body.addEventListener("htmx:wsBeforeMessage", (evt) => {
+            while (reveals.length) {
+                let r = reveals.pop();
+                r.destroy();
+            }
+        });
+        document.body.addEventListener("htmx:wsAfterMessage", (evt) => {
+            document.querySelectorAll('.reveal').forEach(e => {
+                const isRoot = e.parentElement.id == 'root';
+                console.log(e);
+                let r = new Reveal(e,
+                    { progress: false, center: false, disableLayout: true, embedded: true, keyboardCondition: 'focused' }
+                );
+                r.initialize({ plugins: [Highlight] });
+                reveals.push(r);
+            });
+        });
+    </script>
+
+</body>
+
+</html>
