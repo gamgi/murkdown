@@ -4,12 +4,26 @@ An experimental semantic markup language and static site generator for composing
 
 ## Installation
 
-### Using Cargo
+Requires Rust **nightly** toolchain.
 
-If you have installed the Rust toolchain, you can install using cargo:
+### Build from source
+
+Replace <ARCH> below with your architecture, Eg. `aarch64` or `x86_64`.
 
 ```shell
-cargo install murkdown
+rustup target add <ARCH>-unknown-linux-musl
+cargo build --target <ARCH>-unknown-linux-musl
+# optionally uncomment relevant plaform stanza in docker-compose.yaml
+docker copose up --build
+open http://localhost:8000/
+```
+
+A live playground is provided for experimentation.
+
+### Using Cargo
+
+```shell
+cargo install --git https://github.com/gamgi/murkdown
 ```
 
 ## Quick Start
